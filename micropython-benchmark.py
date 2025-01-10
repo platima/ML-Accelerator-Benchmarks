@@ -251,9 +251,6 @@ class UniversalBenchmark:
                 power.append(power_usage)
                 
             mems.append(self._get_mem_free())
-            
-            # Small delay to prevent overheating
-            time.sleep_ms(10)
         
         # Calculate results
         avg_time = sum(times) / len(times)
@@ -308,14 +305,56 @@ class UniversalBenchmark:
             return "unknown_lowfreq"
     
     def save_results(self, results, filename='benchmark_results.json'):
-        """Save results to JSON file"""
+        """Save results to JSON file with nice formatting"""
         try:
+            def format_value(v):
+                if isinstance(v, bool):
+                    return str(v).lower()
+                if isinstance(v, (int, float)):
+                    if isinstance(v, float):
+                        return f"{v:.3f}"  # Format floats to 3 decimal places
+                    return str(v)
+                return f'"{v}"'
+
+            # Manual pretty printing
+            json_str = "{\n"
+            
+            # Device section
+            json_str += '    "device": {\n'
+            dev = results["device"]
+            dev_items = list(dev.items())
+            for i, (k, v) in enumerate(dev_items):
+                json_str += f'        "{k}": {format_value(v)}'
+                if i < len(dev_items) - 1:
+                    json_str += ','
+                json_str += '\n'
+            json_str += '    },\n'
+            
+            # Performance section
+            json_str += '    "performance": {\n'
+            perf = results["performance"]
+            perf_items = list(perf.items())
+            for i, (k, v) in enumerate(perf_items):
+                json_str += f'        "{k}": {format_value(v)}'
+                if i < len(perf_items) - 1:
+                    json_str += ','
+                json_str += '\n'
+            json_str += '    }\n'
+            
+            json_str += '}'
+
+            # Save to file
             with open(filename, 'w') as f:
-                json.dump(results, f)
-            print(f"Results saved to {filename}")
-        except:
-            print("Error saving results to file")
-            print("Results:", results)
+                f.write(json_str)
+            
+            # Display results
+            print(f"\nResults saved to {filename}")
+            print("\nResults:")
+            print(json_str)
+            
+        except Exception as e:
+            print("Error saving results to file:", str(e))
+            print("Raw results:", results)
 
 # Example usage
 if __name__ == '__main__':
