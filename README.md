@@ -4,6 +4,14 @@
 [![MicroPython](https://img.shields.io/badge/micropython-1.19+-yellow.svg)](https://micropython.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+------------------------------------------------------------------------------------------------------
+
+**CURRENTLY HEAVILY WORK-IN-PROGRESS AND I THINK RIGHT NOW MOST OF IT WON'T WORK AS I RE-FACTOR IT ALL**
+
+[Here is the code for the MicroPython version](https://github.com/platima/ml-accelerator-benchmark/blob/816c4b2387aaf601e4a23f96c9798f3b306a766d/micropython-benchmark.py) I used in [the Waveshare RP2350-Plus video](https://youtu.be/bAN2rE3MwOs)
+
+------------------------------------------------------------------------------------------------------
+
 A comprehensive benchmarking suite for ML accelerators across the entire spectrum of computing devices - from powerful edge AI accelerators to resource-constrained microcontrollers.
 
 ## Supported Hardware
