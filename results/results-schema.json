@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Universal ML Benchmark Results",
+  "type": "object",
+  "required": ["device", "benchmarks"],
+  "properties": {
+    "device": {
+      "type": "object",
+      "required": ["name", "type", "processor", "accelerator"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Device marketing name (e.g., 'Luckfox Pico')"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["SBC", "SOC", "MCU"],
+          "description": "Device category"
+        },
+        "processor": {
+          "type": "object",
+          "required": ["name", "architecture", "frequency_mhz"],
+          "properties": {
+            "name": { "type": "string" },
+            "architecture": { "type": "string" },
+            "frequency_mhz": { "type": "number" },
+            "features": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "accelerator": {
+          "type": "object",
+          "required": ["name", "type"],
+          "properties": {
+            "name": { "type": "string" },
+            "type": {
+              "type": "string",
+              "enum": ["NPU", "TPU", "GPU", "NONE"]
+            },
+            "compute_capability": {
+              "type": "string",
+              "description": "e.g., '0.5 TOPS'"
+            },
+            "supported_formats": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "properties": {
+            "total_kb": { "type": "number" },
+            "type": { "type": "string" }
+          }
+        }
+      }
+    },
+    "benchmarks": {
+      "type": "object",
+      "required": ["matrix_ops", "models"],
+      "properties": {
+        "matrix_ops": {
+          "type": "object",
+          "required": ["max_size", "performance"],
+          "properties": {
+            "max_size": {
+              "type": "integer",
+              "description": "Maximum matrix dimension"
+            },
+            "performance": {
+              "type": "object",
+              "required": ["inference_ms", "throughput"],
+              "properties": {
+                "inference_ms": {
+                  "type": "object",
+                  "properties": {
+                    "min": { "type": "number" },
+                    "max": { "type": "number" },
+                    "avg": { "type": "number" }
+                  }
+                },
+                "throughput": {
+                  "type": "object",
+                  "properties": {
+                    "operations_per_second": { "type": "number" },
+                    "fps": { "type": "number" }
+                  }
+                },
+                "memory_usage_kb": { "type": "number" }
+              }
+            }
+          }
+        },
+        "models": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "format", "performance"],
+            "properties": {
+              "name": { 
+                "type": "string",
+                "description": "e.g., 'mobilenetv2', 'yolov5s'"
+              },
+              "format": {
+                "type": "string",
+                "description": "e.g., 'onnx', 'tflite'"
+              },
+              "input_shape": {
+                "type": "array",
+                "items": { "type": "integer" }
+              },
+              "quantization": {
+                "type": "string",
+                "enum": ["none", "int8", "uint8", "int16"]
+              },
+              "performance": {
+                "type": "object",
+                "required": ["inference_ms", "throughput"],
+                "properties": {
+                  "inference_ms": {
+                    "type": "object",
+                    "properties": {
+                      "min": { "type": "number" },
+                      "max": { "type": "number" },
+                      "avg": { "type": "number" }
+                    }
+                  },
+                  "throughput": {
+                    "type": "object",
+                    "properties": {
+                      "fps": { "type": "number" }
+                    }
+                  },
+                  "memory_usage_kb": { "type": "number" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
