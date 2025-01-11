@@ -1,235 +1,165 @@
 """
-Universal ML Benchmark Suite
+Universal ML Benchmark Suite - MicroPython Compatible
 Main orchestrator script that handles all benchmark types
 """
 import os
 import sys
 import json
-import argparse
-from typing import Dict, List, Optional
-import matplotlib.pyplot as plt
-import numpy as np
+import gc
 
-from hardware_detect import HardwareDetector
-from tpu_benchmark import TPUBenchmark
-from python_benchmark import PythonBenchmark
-from memory_benchmark import MemoryBenchmark
+# Conditional imports based on platform
+try:
+    import matplotlib.pyplot as plt
+    import numpy as np
+    MICROPYTHON = False
+except ImportError:
+    MICROPYTHON = True
+
+# Import benchmarks with platform checks
+from benchmarks import (
+    BenchmarkBase,
+    MemoryBenchmark,
+    MicroPythonBenchmark,
+)
+
+from utils import (
+    HardwareDetector,
+    ResultsHandler,
+    BASIC_VISUALIZER if MICROPYTHON else BenchmarkVisualizer
+)
+
+class SimplifiedArgs:
+    """Lightweight argument parser for MicroPython"""
+    def __init__(self):
+        self.benchmark = 'all'
+        self.visualize = False
+        self.compare = False
+        
+    @staticmethod
+    def parse_args():
+        args = SimplifiedArgs()
+        # Simple argument parsing for MicroPython
+        for i, arg in enumerate(sys.argv[1:]):
+            if arg == '--benchmark' and i + 2 <= len(sys.argv):
+                args.benchmark = sys.argv[i + 2]
+            elif arg == '--visualize':
+                args.visualize = True
+            elif arg == '--compare':
+                args.compare = True
+        return args
 
 class BenchmarkOrchestrator:
     def __init__(self):
         self.hardware = HardwareDetector()
-        self.available_runners = self._detect_available_runners()
-        self.results = {}
-
-    def _detect_available_runners(self) -> List[str]:
-        """Detect which benchmark runners are available"""
-        runners = ["memory"]  # Memory benchmark always available
+        self.results_handler = ResultsHandler()
+        self.visualizer = BASIC_VISUALIZER() if MICROPYTHON else BenchmarkVisualizer()
         
-        # Check for TPU/NPU capabilities
-        if any(acc["type"] in ["NPU", "TPU"] 
-               for acc in self.hardware.capabilities["accelerators"]):
-            runners.append("tpu")
+        # Simplified benchmark registry for MicroPython
+        self.benchmarks = {
+            "memory": MemoryBenchmark,
+            "micropython": MicroPythonBenchmark
+        }
+        
+        if not MICROPYTHON:
+            from benchmarks import TPUBenchmark, PythonBenchmark
+            self.benchmarks.update({
+                "python": PythonBenchmark,
+                "tpu": TPUBenchmark
+            })
+
+    def _detect_available_benchmarks(self):
+        """Detect which benchmarks can run on this hardware"""
+        available = ["memory"]  # Memory benchmark always available
+        
+        capabilities = self.hardware.capabilities
+        if not MICROPYTHON and any(acc["type"] in ["NPU", "TPU"] 
+                                 for acc in capabilities["accelerators"]):
+            available.append("tpu")
             
-        # Check for MicroPython
-        try:
-            import micropython
-            runners.append("micropython")
-        except ImportError:
-            pass
-
-        # Check for CUDA
-        try:
-            import torch
-            if torch.cuda.is_available():
-                runners.append("cuda")
-        except ImportError:
-            pass
-
-        return runners
+        available.append("micropython" if MICROPYTHON else "python")
+        return available
 
     def display_menu(self):
         """Display available benchmark options"""
         print("\nAvailable Benchmarks:")
-        print("=" * 40)
+        print("=" * 20)
         for i, runner in enumerate(self.available_runners, 1):
-            print(f"{i}. {runner.upper()} Benchmark")
-        print("0. Run All Available")
+            print(f"{i}. {runner.upper()}")
+        print("0. Run All")
         print("q. Quit")
 
-    def run_tpu_benchmark(self) -> Dict:
-        """Run TPU/NPU benchmarks"""
-        print("\nRunning TPU/NPU benchmarks...")
+    def run_benchmark(self, benchmark_type):
+        """Run a specific benchmark type"""
+        if benchmark_type not in self.benchmarks:
+            raise ValueError(f"Unknown benchmark: {benchmark_type}")
+            
+        benchmark_class = self.benchmarks[benchmark_type]
+        benchmark = benchmark_class()
         
-        benchmark = TPUBenchmark()
-        results = {}
+        gc.collect()  # MicroPython memory management
         
-        # Standard test models
-        models = [
-            {
-                "name": "mobilenetv2",
-                "path": "models/mobilenetv2-12.onnx"
-            },
-            {
-                "name": "yolov5s",
-                "path": "models/yolov5s.onnx"
-            }
-        ]
+        results = benchmark.run()
         
-        # Standard test images
-        test_images = [
-            "images/cat.jpg",
-            "images/dog.jpg",
-            "images/person.jpg"
-        ]
+        # Save results with minimal memory usage
+        device_name = self.hardware.capabilities["accelerators"][0]["model"]
+        self.results_handler.save_result(results, device_name)
         
-        for model in models:
-            try:
-                model_results = benchmark.run_model_benchmark(
-                    model_name=model["name"],
-                    model_path=model["path"],
-                    test_images=test_images,
-                    num_runs=100,
-                    warm_up=10
-                )
-                results[model["name"]] = model_results
-            except Exception as e:
-                print(f"Error benchmarking {model['name']}: {str(e)}")
-                
+        # Generate basic visualizations if not on MicroPython
+        if not MICROPYTHON and hasattr(self.visualizer, 'create_report_plots'):
+            self.visualizer.create_report_plots(results)
+        
         return results
 
-    def run_memory_benchmark(self) -> Dict:
-        """Run memory benchmarks"""
-        print("\nRunning memory benchmarks...")
-        benchmark = MemoryBenchmark()
-        return benchmark.run_benchmark()
-
-    def run_micropython_benchmark(self) -> Dict:
-        """Run MicroPython benchmarks"""
-        print("\nRunning MicroPython benchmarks...")
-        # Import here to avoid errors on systems without MicroPython
-        from micropython_ulab_runner import UniversalBenchmark
-        benchmark = UniversalBenchmark()
-        return benchmark.run()
-
-    def run_benchmark(self, choice: str) -> Optional[Dict]:
-        """Run a specific benchmark"""
-        if choice == "tpu":
-            return self.run_tpu_benchmark()
-        elif choice == "memory":
-            return self.run_memory_benchmark()
-        elif choice == "micropython":
-            return self.run_micropython_benchmark()
-        return None
-
-    def run_all_benchmarks(self) -> Dict:
+    def run_all_benchmarks(self):
         """Run all available benchmarks"""
         results = {}
         for runner in self.available_runners:
+            gc.collect()  # MicroPython memory management
             result = self.run_benchmark(runner)
             if result:
                 results[runner] = result
         return results
 
-    def save_results(self, results: Dict, filename: str = "benchmark_results.json"):
+    def save_results(self, results, filename="benchmark_results.json"):
         """Save benchmark results to file"""
         try:
             with open(filename, "w") as f:
-                json.dump(results, f, indent=2)
+                self._write_json(results, f)
             print(f"\nResults saved to {filename}")
         except Exception as e:
             print(f"Error saving results: {str(e)}")
 
-    def generate_visualizations(self, results: Dict, output_dir: str = "benchmark_results"):
-        """Generate benchmark visualizations"""
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # TPU/NPU performance comparison
-        if "tpu" in results:
-            self._plot_tpu_performance(results["tpu"], output_dir)
+    def _write_json(self, data, f):
+        """Memory-efficient JSON writing for MicroPython"""
+        if MICROPYTHON:
+            # Simple JSON serialization for MicroPython
+            def serialize(obj):
+                if isinstance(obj, dict):
+                    items = [f'"{k}": {serialize(v)}' for k, v in obj.items()]
+                    return "{" + ", ".join(items) + "}"
+                elif isinstance(obj, (list, tuple)):
+                    items = [serialize(x) for x in obj]
+                    return "[" + ", ".join(items) + "]"
+                elif isinstance(obj, (int, float)):
+                    return str(obj)
+                else:
+                    return f'"{str(obj)}"'
             
-        # Memory benchmark visualization
-        if "memory" in results:
-            self._plot_memory_results(results["memory"], output_dir)
-            
-        # Combined performance overview
-        self._plot_overview(results, output_dir)
-
-    def _plot_tpu_performance(self, results: Dict, output_dir: str):
-        """Plot TPU/NPU benchmark results"""
-        fig, ((ax1, ax2), (ax3, ax4)) = plt.subplots(2, 2, figsize=(15, 10))
-        fig.suptitle("TPU/NPU Performance Analysis")
-        
-        models = list(results.keys())
-        fps = [r["performance"]["throughput_fps"] for r in results.values()]
-        inference = [r["performance"]["inference_times_stats"]["mean"] 
-                    for r in results.values()]
-        
-        # FPS Comparison
-        ax1.bar(models, fps)
-        ax1.set_title("Throughput")
-        ax1.set_ylabel("FPS")
-        plt.xticks(rotation=45)
-        
-        # Inference Time
-        ax2.bar(models, inference)
-        ax2.set_title("Inference Time")
-        ax2.set_ylabel("ms")
-        plt.xticks(rotation=45)
-        
-        # Memory Usage
-        if "avg_memory_mb" in results[models[0]]["performance"]:
-            memory = [r["performance"]["avg_memory_mb"] for r in results.values()]
-            ax3.bar(models, memory)
-            ax3.set_title("Memory Usage")
-            ax3.set_ylabel("MB")
-            plt.xticks(rotation=45)
-            
-        plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, "tpu_performance.png"))
-        plt.close()
-
-    def _plot_memory_results(self, results: Dict, output_dir: str):
-        """Plot memory benchmark results"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-        fig.suptitle("Memory Benchmark Results")
-        
-        # Bandwidth
-        ax1.plot(results["array_sizes_mb"], results["read_bandwidth"], 
-                label="Read")
-        ax1.plot(results["array_sizes_mb"], results["write_bandwidth"], 
-                label="Write")
-        ax1.set_title("Memory Bandwidth")
-        ax1.set_xlabel("Array Size (MB)")
-        ax1.set_ylabel("MB/s")
-        ax1.legend()
-        
-        plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, "memory_benchmark.png"))
-        plt.close()
-
-    def _plot_overview(self, results: Dict, output_dir: str):
-        """Plot overall benchmark overview"""
-        fig = plt.figure(figsize=(12, 6))
-        fig.suptitle("Benchmark Overview")
-        
-        # Create overview metrics
-        # TODO: Add more comparative metrics
-        
-        plt.tight_layout()
-        plt.savefig(os.path.join(output_dir, "benchmark_overview.png"))
-        plt.close()
+            f.write(serialize(data))
+        else:
+            json.dump(data, f, indent=2)
 
     def run(self):
         """Main benchmark loop"""
-        print("\nUniversal ML Benchmark Suite")
-        print("=" * 40)
+        print("\nML Benchmark Suite")
+        print("=" * 20)
         
-        # Print hardware capabilities
         self.hardware.print_capabilities()
+        self.available_runners = self._detect_available_benchmarks()
 
         while True:
             self.display_menu()
-            choice = input("\nSelect benchmark (0-{}, q to quit): ".format(
+            choice = input("\nSelect (0-{}, q): ".format(
                 len(self.available_runners)))
 
             if choice.lower() == 'q':
@@ -248,22 +178,44 @@ class BenchmarkOrchestrator:
 
                 if results:
                     self.save_results(results)
-                    self.generate_visualizations(results)
 
             except ValueError:
                 print("Invalid input")
                 continue
+            except Exception as e:
+                print(f"Error: {e}")
+                continue
 
 def main():
-    parser = argparse.ArgumentParser(description='Universal ML Benchmark Suite')
-    parser.add_argument('--output', type=str, default='benchmark_results.json',
-                       help='Output file for results')
-    parser.add_argument('--visualizations', type=str, default='benchmark_results',
-                       help='Output directory for visualizations')
-    args = parser.parse_args()
+    if MICROPYTHON:
+        args = SimplifiedArgs.parse_args()
+    else:
+        import argparse
+        parser = argparse.ArgumentParser(description='ML Benchmark Suite')
+        parser.add_argument('--benchmark', 
+                          choices=['all', 'memory', 'micropython', 'python', 'tpu'],
+                          default='all')
+        parser.add_argument('--visualize', action='store_true')
+        parser.add_argument('--compare', action='store_true')
+        args = parser.parse_args()
 
     orchestrator = BenchmarkOrchestrator()
-    orchestrator.run()
+    
+    try:
+        if args.benchmark == 'all':
+            available = orchestrator._detect_available_benchmarks()
+            results = {}
+            for benchmark_type in available:
+                print(f"\nRunning {benchmark_type}...")
+                results[benchmark_type] = orchestrator.run_benchmark(benchmark_type)
+        else:
+            results = {args.benchmark: orchestrator.run_benchmark(args.benchmark)}
+            
+    except Exception as e:
+        print(f"Error running benchmarks: {e}")
+        sys.exit(1)
+    finally:
+        gc.collect()  # Final cleanup
 
 if __name__ == "__main__":
     main()

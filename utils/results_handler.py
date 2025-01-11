@@ -1,84 +1,140 @@
 """
-Results Handler Module
+Results Handler Module - MicroPython Compatible
 Handles saving, loading, and validating benchmark results
 """
 import os
 import json
-from datetime import datetime
-from typing import Dict, List, Optional
-from pathlib import Path
-import jsonschema
+import gc
+from time import localtime
+
+try:
+    from datetime import datetime
+    MICROPYTHON = False
+except ImportError:
+    MICROPYTHON = True
+
+class SimpleJSONEncoder:
+    """Minimal JSON encoder for MicroPython"""
+    @staticmethod
+    def encode(obj, indent=None):
+        if isinstance(obj, dict):
+            items = [f'"{k}": {SimpleJSONEncoder.encode(v)}' 
+                    for k, v in obj.items()]
+            return "{" + ", ".join(items) + "}"
+        elif isinstance(obj, (list, tuple)):
+            items = [SimpleJSONEncoder.encode(x) for x in obj]
+            return "[" + ", ".join(items) + "]"
+        elif isinstance(obj, (int, float)):
+            return str(obj)
+        elif isinstance(obj, bool):
+            return str(obj).lower()
+        elif obj is None:
+            return "null"
+        else:
+            return f'"{str(obj)}"'
 
 class ResultsHandler:
-    def __init__(self, results_dir: str = "results"):
-        self.results_dir = Path(results_dir)
-        self.schema = self._load_schema()
+    def __init__(self, results_dir="results"):
+        self.results_dir = results_dir
+        self._ensure_dir_exists()
         
-    def _load_schema(self) -> Dict:
-        """Load results schema from file"""
-        schema_path = self.results_dir / "results-schema.json"
+    def _ensure_dir_exists(self):
+        """Create results directory if it doesn't exist"""
         try:
-            with open(schema_path) as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Warning: Could not load schema: {e}")
-            return {}
+            os.mkdir(self.results_dir)
+        except:
+            pass
             
-    def save_result(self, 
-                   results: Dict,
-                   device_name: str,
-                   description: Optional[str] = None) -> str:
+    def _get_timestamp(self):
+        """Get formatted timestamp string"""
+        if MICROPYTHON:
+            t = localtime()
+            return f"{t[0]}-{t[1]:02d}-{t[2]:02d}"
+        else:
+            return datetime.now().strftime("%Y-%m-%d")
+            
+    def _sanitize_filename(self, name):
+        """Create safe filename from device name"""
+        # Remove or replace unsafe characters
+        unsafe = '<>:"/\\|?*'
+        for char in unsafe:
+            name = name.replace(char, '_')
+        return name
+            
+    def save_result(self, results, device_name, description=None):
         """Save benchmark results to a file"""
-        # Validate results against schema
-        if self.schema:
-            try:
-                jsonschema.validate(instance=results, schema=self.schema)
-            except jsonschema.exceptions.ValidationError as e:
-                print(f"Warning: Results do not match schema: {e}")
+        # Add metadata
+        results["_metadata"] = {
+            "timestamp": self._get_timestamp(),
+            "device": device_name
+        }
         
-        # Create filename with timestamp and device name
-        timestamp = datetime.now().strftime("%Y-%m-%d")
-        filename = f"{timestamp} {device_name}"
+        # Create filename
+        timestamp = self._get_timestamp()
+        safe_name = self._sanitize_filename(device_name)
+        filename = f"{timestamp}_{safe_name}"
         if description:
-            filename += f" {description}"
+            filename += f"_{self._sanitize_filename(description)}"
         filename += ".json"
         
-        # Create results directory if it doesn't exist
-        os.makedirs(self.results_dir, exist_ok=True)
-        
         # Save results
-        file_path = self.results_dir / filename
-        with open(file_path, 'w') as f:
-            json.dump(results, f, indent=2)
-            
-        return str(file_path)
-        
-    def load_result(self, filename: str) -> Dict:
-        """Load benchmark results from a file"""
-        file_path = self.results_dir / filename
+        filepath = os.path.join(self.results_dir, filename)
         try:
-            with open(file_path) as f:
-                results = json.load(f)
-                
-            # Validate loaded results
-            if self.schema:
-                jsonschema.validate(instance=results, schema=self.schema)
-                
-            return results
+            with open(filepath, 'w') as f:
+                if MICROPYTHON:
+                    f.write(SimpleJSONEncoder.encode(results))
+                else:
+                    json.dump(results, f, indent=2)
+                    
+            return filepath
         except Exception as e:
-            raise RuntimeError(f"Error loading results from {filename}: {e}")
+            print(f"Error saving results: {str(e)}")
+            return None
+        finally:
+            gc.collect()  # Clean up
             
-    def list_results(self, filter_str: Optional[str] = None) -> List[str]:
+    def load_result(self, filename):
+        """Load benchmark results from a file"""
+        filepath = os.path.join(self.results_dir, filename)
+        try:
+            with open(filepath, 'r') as f:
+                if MICROPYTHON:
+                    # Simple JSON parser for MicroPython
+                    text = f.read()
+                    # Use eval() with strict constraints for simple JSON parsing
+                    # Note: This is safe for our known result format
+                    # but should be replaced with proper JSON parsing
+                    # in production environments
+                    results = eval(text, {"__builtins__": {}}, {})
+                else:
+                    results = json.load(f)
+                return results
+        except Exception as e:
+            print(f"Error loading results: {str(e)}")
+            return None
+        finally:
+            gc.collect()
+            
+    def list_results(self, filter_str=None):
         """List available result files"""
         results = []
-        for file in self.results_dir.glob("*.json"):
-            if file.name == "results-schema.json":
-                continue
-            if filter_str is None or filter_str in file.name:
-                results.append(file.name)
+        try:
+            for filename in os.listdir(self.results_dir):
+                if filename.endswith('.json'):
+                    if filter_str is None or filter_str in filename:
+                        results.append(filename)
+        except Exception as e:
+            print(f"Error listing results: {str(e)}")
         return sorted(results)
         
-    def compare_results(self, filenames: List[str]) -> Dict:
+    def get_latest_result(self, device_name=None):
+        """Get most recent benchmark result"""
+        results = self.list_results(device_name)
+        if not results:
+            return None
+        return self.load_result(results[-1])
+        
+    def compare_results(self, filenames):
         """Compare multiple benchmark results"""
         comparison = {
             "devices": [],
@@ -92,84 +148,70 @@ class ResultsHandler:
         for filename in filenames:
             try:
                 result = self.load_result(filename)
-                comparison["devices"].append(result["device"]["name"])
-                
-                # Extract common metrics
-                for metric in comparison["metrics"].keys():
-                    if metric in result["performance"]:
+                if result:
+                    comparison["devices"].append(
+                        result.get("_metadata", {}).get("device", "Unknown")
+                    )
+                    
+                    perf = result.get("performance", {})
+                    for metric in comparison["metrics"]:
                         comparison["metrics"][metric].append(
-                            result["performance"][metric])
-                    else:
-                        comparison["metrics"][metric].append(None)
+                            perf.get(metric)
+                        )
                         
             except Exception as e:
-                print(f"Warning: Could not load {filename}: {e}")
+                print(f"Error comparing {filename}: {str(e)}")
                 
         return comparison
         
-    def get_latest_result(self, device_name: Optional[str] = None) -> Optional[Dict]:
-        """Get most recent benchmark result"""
-        results = self.list_results(device_name)
-        if not results:
-            return None
+    def clear_old_results(self, keep_days=30):
+        """Remove old result files to free up space"""
+        if MICROPYTHON:
+            print("clear_old_results not supported in MicroPython")
+            return
             
-        # Latest result will be last when sorted
-        return self.load_result(results[-1])
-        
-    def aggregate_results(self, device_type: str) -> Dict:
-        """Aggregate results for a specific device type"""
-        aggregated = {
-            "device_type": device_type,
-            "samples": 0,
-            "metrics": {}
-        }
-        
-        # Find all results for device type
-        results = self.list_results(device_type)
-        if not results:
-            return aggregated
-            
-        # Collect metrics
-        for filename in results:
+        current = datetime.now()
+        for filename in self.list_results():
             try:
-                result = self.load_result(filename)
-                aggregated["samples"] += 1
+                # Extract date from filename (YYYY-MM-DD format)
+                date_str = filename.split('_')[0]
+                file_date = datetime.strptime(date_str, "%Y-%m-%d")
                 
-                # Update metrics
-                for metric, value in result["performance"].items():
-                    if metric not in aggregated["metrics"]:
-                        aggregated["metrics"][metric] = []
-                    aggregated["metrics"][metric].append(value)
-                    
-            except Exception as e:
-                print(f"Warning: Error processing {filename}: {e}")
-                
-        # Calculate statistics
-        for metric, values in aggregated["metrics"].items():
-            if values:
-                aggregated["metrics"][metric] = {
-                    "mean": sum(values) / len(values),
-                    "min": min(values),
-                    "max": max(values)
-                }
-                
-        return aggregated
+                # Remove if older than keep_days
+                if (current - file_date).days > keep_days:
+                    os.remove(os.path.join(self.results_dir, filename))
+            except:
+                continue
 
 def main():
     """Example usage"""
     handler = ResultsHandler()
     
-    # List available results
+    # Example results
+    example_result = {
+        "performance": {
+            "inference_time_ms": 15.5,
+            "throughput_fps": 64.5,
+            "memory_usage_kb": 1024
+        }
+    }
+    
+    # Save example
+    handler.save_result(example_result, "Test Device")
+    
+    # List results
     print("\nAvailable Results:")
     for result in handler.list_results():
         print(f"- {result}")
         
-    # Compare latest results
-    results = handler.list_results()
-    if len(results) >= 2:
-        print("\nComparison of latest results:")
-        comparison = handler.compare_results(results[-2:])
-        print(json.dumps(comparison, indent=2))
+    # Load latest
+    latest = handler.get_latest_result()
+    if latest:
+        print("\nLatest Result:")
+        if MICROPYTHON:
+            print(SimpleJSONEncoder.encode(latest))
+        else:
+            print(json.dumps(latest, indent=2))
 
 if __name__ == "__main__":
     main()
