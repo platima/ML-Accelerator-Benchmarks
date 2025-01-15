@@ -8,7 +8,7 @@
 
 🚨 **CURRENTLY HEAVILY WORK-IN-PROGRESS AND I THINK RIGHT NOW MOST OF IT WON'T WORK AS I RE-FACTOR IT ALL** 🚨
 
-[Here is the code for the MicroPython version](https://github.com/platima/ml-accelerator-benchmark/blob/816c4b2387aaf601e4a23f96c9798f3b306a766d/micropython-benchmark.py) I used in the [Waveshare RP2350-Plus](https://youtu.be/bAN2rE3MwOs) video.
+[Here is the code for the MicroPython version](https://github.com/platima/ml-accelerator-benchmark/blob/816c4b2387aaf601e4a23f96c9798f3b306a766d/micropython-benchmark.py) I used in the [Waveshare RP2350-Plus](https://youtu.be/bAN2rE3MwOs) video
 
 First test results from RP2040 and RP2350 using that code [can be found here](results/2025-01-10%20RP2040%20RP2350%20Platima.json)
 
