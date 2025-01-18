@@ -1,0 +1,27 @@
+{
+    "device": {
+        "board_type": "rp2350",
+        "cpu_freq_mhz": 150,
+        "num_cores": 2,
+        "temp_sensor": true,
+        "power_sensor": true
+    },
+    "performance": {
+        "channels": 3,
+        "array_size": 134,
+        "memory_total": 480160,
+        "memory_used": 288096,
+        "min_inference_ms": 1759,
+        "max_inference_ms": 1770,
+        "avg_inference_ms": 1760.100,
+        "throughput_fps": 0.568,
+        "avg_temperature": 26.529,
+        "max_temperature": 27.044
+    },
+    "benchmark": {
+        "total_ops": 7332828,           // 134³*3 + (134²*3*2)
+        "ops_per_second": 4166143,      // 7,332,828 / (1760.10 / 1000)
+        "normalized_score": 27774.29,   // 4,166,143 / 150
+        "theoretical_power": 8332287    // 27,774.29 * 150 * 2
+    }
+}

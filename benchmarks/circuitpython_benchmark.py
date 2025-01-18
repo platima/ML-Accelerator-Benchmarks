@@ -1,13 +1,19 @@
 """
-Universal MicroPython ML Benchmark
-Compatible with various SBCs and microcontrollers
+Universal CircuitPython ML Benchmark
+Compatible with various CircuitPython boards
 Uses minimal dependencies for wide compatibility
 """
 import time
 import json
-import machine
+import microcontroller
 import gc
-from ulab import numpy as np
+import board
+import analogio
+try:
+    from ulab import numpy as np
+except ImportError:
+    # For newer CircuitPython versions
+    import ulab.numpy as np
 
 class UniversalBenchmark:
     def __init__(self, channels=3, warmup_runs=2, num_runs=10):
@@ -16,8 +22,9 @@ class UniversalBenchmark:
         self.num_runs = num_runs
         
         # Setup hardware info
-        self.freq = machine.freq()  # Hz
+        self.freq = microcontroller.cpu.frequency  # Hz
         self.num_cores = self._detect_core_count()
+        
         self._setup_hardware_monitoring()
         
         # Memory tracking
@@ -33,34 +40,20 @@ class UniversalBenchmark:
     def _detect_core_count(self):
         """Detect number of CPU cores"""
         try:
-            # ESP32 method
-            import esp32
-            return esp32.CORES
-        except:
-            try:
-                # RP2 method
-                import rp2
-                return 2  # RP2040 always has 2 cores
-            except:
-                return 1  # Default to single core
+            return len(microcontroller.cpus)
+        except (AttributeError, TypeError):
+            return 1  # Default to single core if detection fails
     
     def _setup_hardware_monitoring(self):
         """Setup hardware-specific monitoring"""
-        self.has_temp_sensor = False
+        self.has_temp_sensor = True  # CircuitPython always has temperature monitoring
         self.has_power_sensor = False
         
         try:
-            # Try RP2040/RP2350 temperature sensor
-            self.temp_sensor = machine.ADC(4)
-            self.has_temp_sensor = True
-        except:
-            pass
-            
-        try:
-            # Try voltage monitoring if available
-            machine.ADC(29)  # Voltage monitoring pin varies by board
+            # Try to set up voltage monitoring if available
+            self.voltage_pin = analogio.AnalogIn(board.VOLTAGE_MONITOR)
             self.has_power_sensor = True
-        except:
+        except (AttributeError, ValueError):
             pass
     
     def _get_mem_free(self):
@@ -69,16 +62,8 @@ class UniversalBenchmark:
         return gc.mem_free()
     
     def _get_temperature(self):
-        """Get CPU temperature if available"""
-        if not self.has_temp_sensor:
-            return None
-            
-        try:
-            # RP2040/RP2350 method
-            adc = self.temp_sensor.read_u16() * 3.3 / 65535
-            return 27 - (adc - 0.706) / 0.001721
-        except:
-            return None
+        """Get CPU temperature"""
+        return microcontroller.cpu.temperature
     
     def _get_power_usage(self):
         """Get power usage if available"""
@@ -86,8 +71,8 @@ class UniversalBenchmark:
             return None
             
         try:
-            # Implementation varies by board
-            return None  # TODO: Implement for specific boards
+            voltage = self.voltage_pin.value * 3.3 / 65536
+            return voltage
         except:
             return None
     
@@ -162,13 +147,11 @@ class UniversalBenchmark:
         
         print("Phase 1: Finding upper bound")
         while True:
-            print("Testing {}x{}...".format(size, size), end=" ")
+            print(f"Testing {size}x{size}...", end=" ")
             if self._try_create_array(size):
                 print("OK")
                 last_success = size
                 if size >= 256:  # Upper limit for most microcontrollers
-                    print("Stopping at 256, although we could go higher!")
-                    final_size = size
                     break
                 size *= 2
             else:
@@ -178,28 +161,27 @@ class UniversalBenchmark:
         if last_success is None:
             print("Could not find valid starting size!")
             return 8  # Return minimum practical size
+            
+        print(f"\nPhase 2: Binary search between {last_success} and {size}")
         
-        if size != final_size:
-            print("\nPhase 2: Binary search between {} and {}".format(last_success, size))
+        # Binary search between last success and failure
+        low = last_success
+        high = size
+        
+        while low < high - 1:
+            mid = (low + high) // 2
+            print(f"Testing {mid}x{mid}...", end=" ")
             
-            # Binary search between last success and failure
-            low = last_success
-            high = size
-            
-            while low < high - 1:
-                mid = (low + high) // 2
-                print("Testing {}x{}...".format(mid, mid), end=" ")
-                
-                if self._try_create_array(mid):
-                    print("OK")
-                    low = mid
-                else:
-                    print("FAILED")
-                    high = mid
-            
-            final_size = low
+            if self._try_create_array(mid):
+                print("OK")
+                low = mid
+            else:
+                print("FAILED")
+                high = mid
+        
+        final_size = low
         print("\nResults:")
-        print("Maximum stable size: {}x{}".format(final_size, final_size))
+        print(f"Maximum stable size: {final_size}x{final_size}")
         print("--------------------------------------")
         return final_size
     
@@ -215,7 +197,7 @@ class UniversalBenchmark:
     
     def _run_math_ops(self):
         """Run actual mathematical operations with careful memory management"""
-        ops_time = time.ticks_ms()
+        ops_time = time.monotonic_ns()  # Use nanosecond precision
         
         # Reset output array manually
         self.output_array = np.zeros(self.output_array.shape)
@@ -238,7 +220,8 @@ class UniversalBenchmark:
         # Final normalization (simple scaling)
         self.output_array *= (1.0 / self.channels)
         
-        return time.ticks_diff(time.ticks_ms(), ops_time)
+        elapsed_ns = time.monotonic_ns() - ops_time
+        return elapsed_ns / 1_000_000  # Convert to milliseconds
     
     def run(self):
         """Run complete benchmark with multicore awareness"""
@@ -309,6 +292,7 @@ class UniversalBenchmark:
         results = {
             "device": {
                 "cpu_freq_mhz": self.freq / 1_000_000,
+                "board_type": self._detect_board_type(),
                 "temp_sensor": self.has_temp_sensor,
                 "power_sensor": self.has_power_sensor,
                 "num_cores": self.num_cores
@@ -321,13 +305,102 @@ class UniversalBenchmark:
                 "min_inference_ms": min_time,
                 "max_inference_ms": max_time,
                 "avg_inference_ms": avg_time,
-                "throughput_fps": 1000 / avg_time,
+                "throughput_fps": 1000 / avg_time
             },
             "benchmark": {
                 "total_ops": total_ops,
                 "ops_per_second": ops_per_second,
-                "normalized_score": ops_per_second_per_mhz, # Operations per second per MHz
-                "theoretical_power": theoretical_power      # Total theoretical computational power
+                "normalized_score": ops_per_second_per_mhz,
+                "theoretical_power": theoretical_power
+            }
+        }
+        print("\nStarting benchmark...")
+        print(f"CPU Frequency: {self.freq / 1_000_000:.1f} MHz")
+        print(f"Number of CPU cores: {self.num_cores}")
+        print(f"Initial free memory: {self.initial_mem} bytes")
+        print(f"Array size per channel: {self.max_size}x{self.max_size}")
+        
+        # Warn about potential multicore impacts
+        if self.num_cores > 1:
+            print("Note: Multicore system detected. Benchmark results may be affected by:")
+            print("- Background tasks on other cores")
+            print("- Shared memory bandwidth")
+            print("- Cache coherency overhead")
+        
+        try:
+            self._create_benchmark_arrays()
+        except Exception as e:
+            print(f"Error: Failed to create benchmark arrays: {str(e)}")
+            return None
+        
+        mem_after_data = self._get_mem_free()
+        print(f"Free memory after data creation: {mem_after_data} bytes")
+        print(f"Data size: {self.initial_mem - mem_after_data} bytes")
+        
+        # Warmup runs
+        print("Performing warmup runs...")
+        for _ in range(self.warmup_runs):
+            self._run_math_ops()
+        
+        # Benchmark runs
+        print(f"Running {self.num_runs} iterations...")
+        times = []
+        temps = []
+        mems = []
+        power = []
+        
+        for i in range(self.num_runs):
+            print(f"Progress: {i+1}/{self.num_runs}")
+            
+            # Run benchmark and collect metrics
+            runtime = self._run_math_ops()
+            times.append(runtime)
+            
+            temp = self._get_temperature()
+            if temp is not None:
+                temps.append(temp)
+                
+            power_usage = self._get_power_usage()
+            if power_usage is not None:
+                power.append(power_usage)
+                
+            mems.append(self._get_mem_free())
+        
+        # Calculate results
+        avg_time = sum(times) / len(times)
+        min_time = min(times)
+        max_time = max(times)
+        
+        # Calculate total operations and normalized performance metrics
+        total_ops = self._calculate_ops(self.max_size)
+        ops_per_second = total_ops / (avg_time / 1000)  # Convert ms to seconds
+        ops_per_second_per_mhz = ops_per_second / (self.freq / 1_000_000)
+        # Calculate theoretical total power (efficiency × MHz × cores)
+        theoretical_power = ops_per_second_per_mhz * (self.freq / 1_000_000) * self.num_cores
+        
+        results = {
+            "device": {
+                "board_type": self._detect_board_type(),
+                "cpu_freq_mhz": self.freq / 1_000_000,
+                "num_cores": self.num_cores,
+                "temp_sensor": self.has_temp_sensor,
+                "power_sensor": self.has_power_sensor
+            },
+            "performance": {
+                "channels": self.channels,
+                "array_size": self.max_size,
+                "memory_total": self.initial_mem,
+                "memory_used": self.initial_mem - min(mems),
+                "min_inference_ms": min_time,
+                "max_inference_ms": max_time,
+                "avg_inference_ms": avg_time,
+                "throughput_fps": 1000 / avg_time
+            },
+            "benchmark": {
+                "total_ops": total_ops,
+                "ops_per_second": ops_per_second,
+                "normalized_score": ops_per_second_per_mhz,
+                "theoretical_power": theoretical_power
             }
         }
         
@@ -348,25 +421,9 @@ class UniversalBenchmark:
         return results
     
     def _detect_board_type(self):
-        """Try to detect the board type"""
-        try:
-            import esp32
-            return "esp32"
-        except:
-            try:
-                import rp2
-                return "rp2040"
-            except:
-                # Fall back to frequency-based detection
-                if self.freq >= 133_000_000:
-                    if self.has_temp_sensor:
-                        return "rp2350"
-                    return "unknown_highfreq"
-                else:
-                    if self.has_temp_sensor:
-                        return "rp2040"
-                    return "unknown_lowfreq"
-    
+        """Detect the board type"""
+        return board.board_id
+        
     def format_number(self, n):
         """Format a number for JSON output without scientific notation"""
         if isinstance(n, bool):
@@ -386,34 +443,59 @@ class UniversalBenchmark:
     def print_results(self, results):
         """Print results in nicely formatted JSON to stdout"""
         try:
+            device_order = [
+                "cpu_freq_mhz",
+                "board_type",
+                "temp_sensor",
+                "power_sensor",
+                "num_cores"
+            ]
+            
+            performance_order = [
+                "channels",
+                "array_size",
+                "memory_total",
+                "memory_used",
+                "min_inference_ms",
+                "max_inference_ms",
+                "avg_inference_ms",
+                "throughput_fps"
+            ]
+            
+            if "avg_temperature" in results["performance"]:
+                performance_order.extend(["avg_temperature", "max_temperature"])
+            
+            benchmark_order = [
+                "total_ops",
+                "ops_per_second",
+                "normalized_score",
+                "theoretical_power"
+            ]
+            
             # Build JSON string with proper formatting
             output = []
             output.append("{")
             
             # Device section
             output.append('    "device": {')
-            dev_items = list(results["device"].items())
-            for i, (key, value) in enumerate(dev_items):
-                comma = "," if i < len(dev_items) - 1 else ""
-                output.append('        "{}": {}{}'.format(key, self.format_number(value), comma))
+            for i, key in enumerate(device_order):
+                comma = "," if i < len(device_order) - 1 else ""
+                output.append('        "{}": {}{}'.format(key, self.format_number(results["device"][key]), comma))
             output.append("    },")
             
             # Performance section
             output.append('    "performance": {')
-            perf_items = list(results["performance"].items())
-            for i, (key, value) in enumerate(perf_items):
-                comma = "," if i < len(perf_items) - 1 else ""
-                output.append('        "{}": {}{}'.format(key, self.format_number(value), comma))
-            output.append("    }")
-            
-            output.append("},")
+            for i, key in enumerate(performance_order):
+                if key in results["performance"]:
+                    comma = "," if i < len([k for k in performance_order if k in results["performance"]]) - 1 else ""
+                    output.append('        "{}": {}{}'.format(key, self.format_number(results["performance"][key]), comma))
+            output.append("    },")
             
             # Benchmark section
             output.append('    "benchmark": {')
-            perf_items = list(results["benchmark"].items())
-            for i, (key, value) in enumerate(perf_items):
-                comma = "," if i < len(perf_items) - 1 else ""
-                output.append('        "{}": {}{}'.format(key, self.format_number(value), comma))
+            for i, key in enumerate(benchmark_order):
+                comma = "," if i < len(benchmark_order) - 1 else ""
+                output.append('        "{}": {}{}'.format(key, self.format_number(results["benchmark"][key]), comma))
             output.append("    }")
             
             output.append("}")
@@ -442,4 +524,4 @@ if __name__ == "__main__":
             benchmark.print_results(results)
             
     except Exception as e:
-        print("Benchmark failed: {}".format(str(e)))
+        print(f"Benchmark failed: {str(e)}")

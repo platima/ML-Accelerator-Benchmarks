@@ -1,0 +1,27 @@
+{
+    "device": {
+        "board_type": "rp2040",
+        "cpu_freq_mhz": 125,
+        "num_cores": 2,
+        "temp_sensor": true,
+        "power_sensor": true
+    },
+    "performance": {
+        "channels": 3,
+        "array_size": 90,
+        "memory_total": 217360,
+        "memory_used": 130368,
+        "min_inference_ms": 4809,
+        "max_inference_ms": 4820,
+        "avg_inference_ms": 4810.300,
+        "throughput_fps": 0.208,
+        "avg_temperature": 32.896,
+        "max_temperature": 34.067
+    },
+    "benchmark": {
+        "total_ops": 2235600,           // 90³*3 + (90²*3*2)
+        "ops_per_second": 464753,       // 2,235,600 / (4810.30 / 1000)
+        "normalized_score": 3718.02,    // 464,753 / 125
+        "theoretical_power": 929505     // 3,718.02 * 125 * 2
+    }
+}

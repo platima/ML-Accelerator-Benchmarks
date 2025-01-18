@@ -1,0 +1,27 @@
+{
+    "device": {
+        "cpu_freq_mhz": 360.000,
+        "board_type": "espressif_esp32p4_function_ev",
+        "temp_sensor": true,
+        "power_sensor": false,
+        "num_cores": 1
+    },
+    "performance": {
+        "channels": 3,
+        "array_size": 256,
+        "memory_total": 33084336,
+        "memory_used": 2438320,
+        "min_inference_ms": 28097.930,
+        "max_inference_ms": 28139.125,
+        "avg_inference_ms": 28118.750,
+        "throughput_fps": 0.036,
+        "avg_temperature": 32.000,
+        "max_temperature": 32.000
+    },
+    "benchmark": {
+        "total_ops": 50724864,
+        "ops_per_second": 1803952.000,
+        "normalized_score": 5010.977,
+        "theoretical_power": 1803951.500
+    }
+}
