@@ -10,6 +10,7 @@ The future planned version or state - for when I have time - can be found [here]
 
 ## 
 - RP2350/RP2040 (MicroPython + ulab)
+- ESP32-P4 (CircuitPython)
 
 ## Example Results Format
 ```json
