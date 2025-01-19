@@ -1,7 +1,7 @@
 {
     "_meta": {
         "Source version": "0.2",
-        "Source code": "TBC (pending commit)",
+        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/67dbe138fe7a2f0ed16ccbcd8ec3fcaaa4ba4b33/benchmarks/circuitpython_benchmark.py",
         "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
         "Test date": "2025-01-18",
         "Tester": "Platima",

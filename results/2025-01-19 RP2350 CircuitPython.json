@@ -1,19 +1,19 @@
 {
     "_meta": {
         "Source version": "0.2",
-        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/circuitpython-benchmark.py",
+        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/929823541b83dd76014b3764c241e43126fe715a/benchmarks/circuitpython-benchmark.py",
         "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
         "Test date": "2025-01-19",
         "Tester": "Platima",
-        "Firmware": "TBC",
+        "Firmware": "https://downloads.circuitpython.org/bin/raspberry_pi_pico2/en_US/adafruit-circuitpython-raspberry_pi_pico2-en_US-9.2.3.uf2",
         "Notes": "Busted CircuitPython code that strips 15 off the matrix size due to memory issues"
     },
     "device": {
         "board_type": "rp2350",
         "cpu_freq_mhz": 150.000,
+        "num_cores": 2,
         "temp_sensor": true,
-        "power_sensor": true,
-        "num_cores": 2
+        "power_sensor": true
     },
     "performance": {
         "channels": 3,

@@ -1,7 +1,7 @@
 {
     "_meta": {
         "Source version": "0.2",
-        "Source code": "TBC (pending commit)",
+        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/929823541b83dd76014b3764c241e43126fe715a/benchmarks/micropython-benchmark.py",
         "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
         "Test date": "2025-01-19",
         "Tester": "Platima",
