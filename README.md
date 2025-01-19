@@ -20,14 +20,14 @@ A comprehensive benchmarking suite for ML accelerators across the entire spectru
 - [License](#license)
 
 ## Overview
-This benchmark suite provides standardized performance metrics for matrix operations commonly used in ML workloads. It automatically detects hardware capabilities and maximizes matrix sizes based on available memory.
+This benchmark suite provides standardised performance metrics for matrix operations commonly used in ML workloads. It automatically detects hardware capabilities and maximises matrix sizes based on available memory.
 
 ## Features
 - Automatic hardware detection and configuration
-- Memory-aware matrix size optimization
+- Memory-aware matrix size optimisation
 - Multi-core awareness
 - Temperature and power monitoring (where available)
-- Standardized performance metrics
+- Standardised performance metrics
 - JSON output format for easy parsing and comparison
 
 ## Supported Hardware
@@ -61,7 +61,7 @@ The benchmark provides several key metrics:
 - **Performance Metrics**:
   - Raw inference time
   - Operations per second
-  - Normalized score (ops/second/MHz)
+  - Normalised score (ops/second/MHz)
   - Theoretical power (accounting for cores and frequency)
 - **Hardware Monitoring**:
   - Temperature (where available)
@@ -112,7 +112,7 @@ Contributions are welcome! Key areas for improvement include:
 - Improved detection methods
 - New benchmark metrics
 - Documentation improvements
-- Bug fixes and optimizations
+- Bug fixes and optimisations
 
 ## License
 This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
