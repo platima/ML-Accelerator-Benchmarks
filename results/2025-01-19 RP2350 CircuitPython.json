@@ -1,0 +1,36 @@
+{
+    "_meta": {
+        "Source version": "0.2",
+        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/circuitpython-benchmark.py",
+        "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
+        "Test date": "2025-01-19",
+        "Tester": "Platima",
+        "Firmware": "TBC",
+        "Notes": "Busted CircuitPython code that strips 15 off the matrix size due to memory issues"
+    },
+    "device": {
+        "board_type": "rp2350",
+        "cpu_freq_mhz": 150.000,
+        "temp_sensor": true,
+        "power_sensor": true,
+        "num_cores": 2
+    },
+    "performance": {
+        "channels": 3,
+        "array_size": 103,
+        "memory_total": 422464,
+        "memory_used": 289616,
+        "min_inference_ms": 799.072,
+        "max_inference_ms": 821.960,
+        "avg_inference_ms": 801.889,
+        "throughput_fps": 1.247,
+        "avg_temperature": 21.006,
+        "max_temperature": 21.521
+    },
+    "benchmark": {
+        "total_ops": 3341835,
+        "ops_per_second": 4167456.000,
+        "normalized_score": 27783.039,
+        "theoretical_power": 8334910.000
+    }
+}

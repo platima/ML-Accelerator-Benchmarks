@@ -362,7 +362,7 @@ class UniversalBenchmark:
             return board_type
         except:
             try:
-                import rp2
+                import rp2 # TODO this does not exist in CircuitPython
                 # Both have rp2 module, differentiate by frequency
                 board_type = "rp2350" if self.freq >= 133_000_000 else "rp2040"
                 del rp2
@@ -404,11 +404,11 @@ class UniversalBenchmark:
             ]
             
             device_order = [
-                "cpu_freq_mhz",
                 "board_type",
+                "cpu_freq_mhz",
+                "num_cores",
                 "temp_sensor",
-                "power_sensor",
-                "num_cores"
+                "power_sensor"
             ]
             
             performance_order = [
