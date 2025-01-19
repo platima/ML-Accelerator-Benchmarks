@@ -10,7 +10,7 @@
 
 [Here is the code for the MicroPython version](https://github.com/platima/ml-accelerator-benchmark/blob/816c4b2387aaf601e4a23f96c9798f3b306a766d/micropython-benchmark.py) I used in the [Waveshare RP2350-Plus](https://youtu.be/bAN2rE3MwOs) video
 
-First test results from RP2040 and RP2350 using that code [can be found here](results/2025-01-10%20RP2040%20RP2350%20Platima.json)
+First test results from RP2040 and RP2350 using that code [can be found here](results/2025-01-10%20RP2040%20RP2350%20Platima.json). (This)[https://github.com/pimoroni/pimoroni-pico-rp2350/releases/download/v0.0.11/pico2-v0.0.11-pimoroni-micropython.uf2] is the Pimoroni firmware used for the above results.
 
 ------------------------------------------------------------------------------------------------------
 
