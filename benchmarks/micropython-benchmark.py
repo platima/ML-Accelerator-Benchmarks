@@ -219,6 +219,7 @@ class UniversalBenchmark:
     def _create_benchmark_arrays(self):
         """Create actual arrays for benchmarking"""
         self.input_arrays = []
+        gc.collect()
         for _ in range(self.channels):
             arr = np.zeros((self.max_size, self.max_size))
             arr += np.linspace(0, 1, arr.size).reshape(arr.shape)  # Create gradient

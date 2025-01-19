@@ -132,11 +132,6 @@ class UniversalBenchmark:
             except:
                 return False
             
-            # Check memory usage against our core-aware limit
-            mem_used = initial_mem - self._get_mem_free()
-            if mem_used > initial_mem * mem_limit:
-                return False
-            
             # Clean up
             del arrays
             del out_arr
@@ -193,11 +188,12 @@ class UniversalBenchmark:
         print("\nResults:")
         print(f"Maximum stable size: {final_size}x{final_size}")
         print("--------------------------------------")
-        return final_size
+        return final_size - 15 # TODO this is to avoid a memory error that I'm yet to deal with
     
     def _create_benchmark_arrays(self):
         """Create actual arrays for benchmarking"""
         self.input_arrays = []
+        gc.collect()
         for _ in range(self.channels):
             arr = np.zeros((self.max_size, self.max_size))
             arr += np.linspace(0, 1, arr.size).reshape(arr.shape)  # Create gradient
