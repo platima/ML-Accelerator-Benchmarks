@@ -157,6 +157,8 @@ class UniversalBenchmark:
                 print("OK")
                 last_success = size
                 if size >= 256:  # Upper limit for most microcontrollers
+                    print("Stopping at 256, although we could go higher!")
+                    final_size = size
                     break
                 size *= 2
             else:
