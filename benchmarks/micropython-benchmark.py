@@ -1,13 +1,26 @@
 """
 Universal MicroPython ML Benchmark
-Compatible with various SBCs and microcontrollers
-Uses minimal dependencies for wide compatibility
+
+A standardized benchmark for testing ML matrix operation performance
+on microcontrollers and SBCs.
+
+License: See GitHub repository (link below)
 """
+
+# Benchmark metadata
+__version__ = "0.2"
+__repo__ = "https://github.com/platima/ml-accelerator-benchmark"
+__source__ = "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/micropython-benchmark.py"
+__author__ = "Platima"
+__firmware__ = "https://github.com/pimoroni/pimoroni-pico-rp2350/releases/download/v0.0.11/pico2-v0.0.11-pimoroni-micropython.uf2"
+__notes__ = ""
+
+# Imports
 import time
 import json
 import machine
 import gc
-from ulab import numpy as np
+from ulab import numpy as np    # ulab is a numpy-like library for MicroPython
 
 class UniversalBenchmark:
     def __init__(self, channels=3, warmup_runs=2, num_runs=10):
@@ -35,11 +48,16 @@ class UniversalBenchmark:
         try:
             # ESP32 method
             import esp32
+            cores = esp32.CORES
+            del esp32
+            gc.collect()
             return esp32.CORES
         except:
             try:
                 # RP2 method
                 import rp2
+                del rp2
+                gc.collect()
                 return 2  # RP2040 always has 2 cores
             except:
                 return 1  # Default to single core
@@ -110,6 +128,7 @@ class UniversalBenchmark:
         """Try to create test arrays of given size and verify operational memory"""
         try:
             # Get initial memory
+            gc.collect()
             initial_mem = self._get_mem_free()
             arrays = []
             
@@ -134,14 +153,6 @@ class UniversalBenchmark:
             except:
                 return False
             
-            # Scale down allowed memory usage if we have multiple cores
-            mem_limit = 0.6 if self.num_cores == 1 else 0.4  # More conservative with multiple cores
-            
-            # Check memory usage against our core-aware limit
-            mem_used = initial_mem - self._get_mem_free()
-            if mem_used > initial_mem * mem_limit:
-                return False
-            
             # Clean up
             del arrays
             del out_arr
@@ -159,6 +170,7 @@ class UniversalBenchmark:
         # Initial phase: double until failure
         size = 16
         last_success = None
+        final_size = None
         
         print("Phase 1: Finding upper bound")
         while True:
@@ -178,7 +190,7 @@ class UniversalBenchmark:
         if last_success is None:
             print("Could not find valid starting size!")
             return 8  # Return minimum practical size
-        
+            
         if size != final_size:
             print("\nPhase 2: Binary search between {} and {}".format(last_success, size))
             
@@ -198,6 +210,7 @@ class UniversalBenchmark:
                     high = mid
             
             final_size = low
+        
         print("\nResults:")
         print("Maximum stable size: {}x{}".format(final_size, final_size))
         print("--------------------------------------")
@@ -306,12 +319,28 @@ class UniversalBenchmark:
         # Calculate theoretical total power (efficiency × MHz × cores)
         theoretical_power = ops_per_second_per_mhz * (self.freq / 1_000_000) * self.num_cores
         
+        # Get current date in ISO format
+        current_date = time.localtime()
+        date_str = "{:04d}-{:02d}-{:02d}".format(
+            current_date[0], current_date[1], current_date[2]
+        )
+        
         results = {
+            "_meta": {
+                "Source version": __version__,
+                "Source code": __source__,
+                "Source repo": __repo__,
+                "Test date": date_str,
+                "Tester": __author__,
+                "Firmware": __firmware__,
+                "Notes": __notes__
+            },
             "device": {
+                "board_type": self._detect_board_type(),
                 "cpu_freq_mhz": self.freq / 1_000_000,
+                "num_cores": self.num_cores,
                 "temp_sensor": self.has_temp_sensor,
-                "power_sensor": self.has_power_sensor,
-                "num_cores": self.num_cores
+                "power_sensor": self.has_power_sensor
             },
             "performance": {
                 "channels": self.channels,
@@ -321,13 +350,13 @@ class UniversalBenchmark:
                 "min_inference_ms": min_time,
                 "max_inference_ms": max_time,
                 "avg_inference_ms": avg_time,
-                "throughput_fps": 1000 / avg_time,
+                "throughput_fps": 1000 / avg_time
             },
             "benchmark": {
                 "total_ops": total_ops,
                 "ops_per_second": ops_per_second,
-                "normalized_score": ops_per_second_per_mhz, # Operations per second per MHz
-                "theoretical_power": theoretical_power      # Total theoretical computational power
+                "normalized_score": ops_per_second_per_mhz,
+                "theoretical_power": theoretical_power
             }
         }
         
@@ -351,21 +380,23 @@ class UniversalBenchmark:
         """Try to detect the board type"""
         try:
             import esp32
-            return "esp32"
+            board_type = "esp32"
+            del esp32
+            gc.collect()
+            return board_type
         except:
             try:
                 import rp2
-                return "rp2040"
+                # Both have rp2 module, differentiate by frequency
+                board_type = "rp2350" if self.freq >= 133_000_000 else "rp2040"
+                del rp2
+                gc.collect()
+                return board_type
             except:
-                # Fall back to frequency-based detection
+                # Fall back to other detection methods
                 if self.freq >= 133_000_000:
-                    if self.has_temp_sensor:
-                        return "rp2350"
                     return "unknown_highfreq"
-                else:
-                    if self.has_temp_sensor:
-                        return "rp2040"
-                    return "unknown_lowfreq"
+                return "unknown_lowfreq"
     
     def format_number(self, n):
         """Format a number for JSON output without scientific notation"""
@@ -386,34 +417,76 @@ class UniversalBenchmark:
     def print_results(self, results):
         """Print results in nicely formatted JSON to stdout"""
         try:
+            meta_order = [
+                "Source version",
+                "Source code",
+                "Source repo",
+                "Test date",
+                "Tester",
+                "Firmware",
+                "Notes"
+            ]
+            
+            device_order = [
+                "board_type",
+                "cpu_freq_mhz",
+                "num_cores",
+                "temp_sensor",
+                "power_sensor"
+            ]
+            
+            performance_order = [
+                "channels",
+                "array_size",
+                "memory_total",
+                "memory_used",
+                "min_inference_ms",
+                "max_inference_ms",
+                "avg_inference_ms",
+                "throughput_fps"
+            ]
+            
+            if "avg_temperature" in results["performance"]:
+                performance_order.extend(["avg_temperature", "max_temperature"])
+            
+            benchmark_order = [
+                "total_ops",
+                "ops_per_second",
+                "normalized_score",
+                "theoretical_power"
+            ]
+            
             # Build JSON string with proper formatting
             output = []
             output.append("{")
             
+            # Metadata section
+            output.append('    "_meta": {')
+            for i, key in enumerate(meta_order):
+                comma = "," if i < len(meta_order) - 1 else ""
+                output.append('        "{}": {}{}'.format(key, self.format_number(results["_meta"][key]), comma))
+            output.append("    },")
+            
             # Device section
             output.append('    "device": {')
-            dev_items = list(results["device"].items())
-            for i, (key, value) in enumerate(dev_items):
-                comma = "," if i < len(dev_items) - 1 else ""
-                output.append('        "{}": {}{}'.format(key, self.format_number(value), comma))
+            for i, key in enumerate(device_order):
+                comma = "," if i < len(device_order) - 1 else ""
+                output.append('        "{}": {}{}'.format(key, self.format_number(results["device"][key]), comma))
             output.append("    },")
             
             # Performance section
             output.append('    "performance": {')
-            perf_items = list(results["performance"].items())
-            for i, (key, value) in enumerate(perf_items):
-                comma = "," if i < len(perf_items) - 1 else ""
-                output.append('        "{}": {}{}'.format(key, self.format_number(value), comma))
-            output.append("    }")
-            
-            output.append("},")
+            for i, key in enumerate(performance_order):
+                if key in results["performance"]:
+                    comma = "," if i < len([k for k in performance_order if k in results["performance"]]) - 1 else ""
+                    output.append('        "{}": {}{}'.format(key, self.format_number(results["performance"][key]), comma))
+            output.append("    },")
             
             # Benchmark section
             output.append('    "benchmark": {')
-            perf_items = list(results["benchmark"].items())
-            for i, (key, value) in enumerate(perf_items):
-                comma = "," if i < len(perf_items) - 1 else ""
-                output.append('        "{}": {}{}'.format(key, self.format_number(value), comma))
+            for i, key in enumerate(benchmark_order):
+                comma = "," if i < len(benchmark_order) - 1 else ""
+                output.append('        "{}": {}{}'.format(key, self.format_number(results["benchmark"][key]), comma))
             output.append("    }")
             
             output.append("}")

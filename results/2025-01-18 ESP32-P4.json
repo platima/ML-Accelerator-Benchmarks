@@ -1,10 +1,19 @@
 {
+    "_meta": {
+        "Source version": "0.2",
+        "Source code": "TBC (pending commit)",
+        "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
+        "Test date": "2025-01-18",
+        "Tester": "Platima",
+        "Firmware": "https://downloads.circuitpython.org/bin/espressif_esp32p4_function_ev/en_US/adafruit-circuitpython-espressif_esp32p4_function_ev-en_US-9.2.3.bin",
+        "Notes": ""
+    },
     "device": {
-        "cpu_freq_mhz": 360.000,
         "board_type": "espressif_esp32p4_function_ev",
+        "cpu_freq_mhz": 360.000,
+        "num_cores": 1,
         "temp_sensor": true,
-        "power_sensor": false,
-        "num_cores": 1
+        "power_sensor": false
     },
     "performance": {
         "channels": 3,

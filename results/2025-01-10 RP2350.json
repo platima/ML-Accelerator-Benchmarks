@@ -1,4 +1,13 @@
 {
+    "_meta": {
+        "Source version": "0.1",
+        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/816c4b2387aaf601e4a23f96c9798f3b306a766d/micropython-benchmark.py",
+        "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
+        "Test date": "2025-01-10",
+        "Tester": "Platima",
+        "Firmware": "https://github.com/pimoroni/pimoroni-pico-rp2350/releases/download/v0.0.11/pico2-v0.0.11-pimoroni-micropython.uf2",
+        "Notes": "'benchmark' data added retrospecively by manual calculation"
+    },
     "device": {
         "board_type": "rp2350",
         "cpu_freq_mhz": 150,
@@ -19,9 +28,9 @@
         "max_temperature": 27.044
     },
     "benchmark": {
-        "total_ops": 7332828,           // 134³*3 + (134²*3*2)
-        "ops_per_second": 4166143,      // 7,332,828 / (1760.10 / 1000)
-        "normalized_score": 27774.29,   // 4,166,143 / 150
-        "theoretical_power": 8332287    // 27,774.29 * 150 * 2
+        "total_ops": 7332828,
+        "ops_per_second": 4166143,
+        "normalized_score": 27774.29,
+        "theoretical_power": 8332287
     }
 }

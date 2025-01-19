@@ -1,8 +1,20 @@
 """
 Universal CircuitPython ML Benchmark
-Compatible with various CircuitPython boards
-Uses minimal dependencies for wide compatibility
+
+A standardized benchmark for testing ML matrix operation performance
+on microcontrollers and SBCs.
+
+License: See GitHub repository (link below)
 """
+
+# Benchmark metadata
+__version__ = "0.2"
+__repo__ = "https://github.com/platima/ml-accelerator-benchmark"
+__source__ = "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/circuitpython-benchmark.py"
+__author__ = "Platima"
+__firmware__ = "TBC"
+__notes__ = ""
+
 import time
 import json
 import microcontroller
@@ -95,6 +107,7 @@ class UniversalBenchmark:
         """Try to create test arrays of given size and verify operational memory"""
         try:
             # Get initial memory
+            gc.collect()
             initial_mem = self._get_mem_free()
             arrays = []
             
@@ -118,9 +131,6 @@ class UniversalBenchmark:
                 gc.collect()
             except:
                 return False
-            
-            # Scale down allowed memory usage if we have multiple cores
-            mem_limit = 0.6 if self.num_cores == 1 else 0.4  # More conservative with multiple cores
             
             # Check memory usage against our core-aware limit
             mem_used = initial_mem - self._get_mem_free()
@@ -289,102 +299,28 @@ class UniversalBenchmark:
         # Calculate theoretical total power (efficiency × MHz × cores)
         theoretical_power = ops_per_second_per_mhz * (self.freq / 1_000_000) * self.num_cores
         
+        # Get current date in ISO format
+        current_date = time.localtime()
+        date_str = "{:04d}-{:02d}-{:02d}".format(
+            current_date[0], current_date[1], current_date[2]
+        )
+        
         results = {
+            "_meta": {
+                "Source version": __version__,
+                "Source code": __source__,
+                "Source repo": __repo__,
+                "Test date": date_str,
+                "Tester": __author__,
+                "Firmware": __firmware__,
+                "Notes": __notes__
+            },
             "device": {
                 "cpu_freq_mhz": self.freq / 1_000_000,
                 "board_type": self._detect_board_type(),
                 "temp_sensor": self.has_temp_sensor,
                 "power_sensor": self.has_power_sensor,
                 "num_cores": self.num_cores
-            },
-            "performance": {
-                "channels": self.channels,
-                "array_size": self.max_size,
-                "memory_total": self.initial_mem,
-                "memory_used": self.initial_mem - min(mems),
-                "min_inference_ms": min_time,
-                "max_inference_ms": max_time,
-                "avg_inference_ms": avg_time,
-                "throughput_fps": 1000 / avg_time
-            },
-            "benchmark": {
-                "total_ops": total_ops,
-                "ops_per_second": ops_per_second,
-                "normalized_score": ops_per_second_per_mhz,
-                "theoretical_power": theoretical_power
-            }
-        }
-        print("\nStarting benchmark...")
-        print(f"CPU Frequency: {self.freq / 1_000_000:.1f} MHz")
-        print(f"Number of CPU cores: {self.num_cores}")
-        print(f"Initial free memory: {self.initial_mem} bytes")
-        print(f"Array size per channel: {self.max_size}x{self.max_size}")
-        
-        # Warn about potential multicore impacts
-        if self.num_cores > 1:
-            print("Note: Multicore system detected. Benchmark results may be affected by:")
-            print("- Background tasks on other cores")
-            print("- Shared memory bandwidth")
-            print("- Cache coherency overhead")
-        
-        try:
-            self._create_benchmark_arrays()
-        except Exception as e:
-            print(f"Error: Failed to create benchmark arrays: {str(e)}")
-            return None
-        
-        mem_after_data = self._get_mem_free()
-        print(f"Free memory after data creation: {mem_after_data} bytes")
-        print(f"Data size: {self.initial_mem - mem_after_data} bytes")
-        
-        # Warmup runs
-        print("Performing warmup runs...")
-        for _ in range(self.warmup_runs):
-            self._run_math_ops()
-        
-        # Benchmark runs
-        print(f"Running {self.num_runs} iterations...")
-        times = []
-        temps = []
-        mems = []
-        power = []
-        
-        for i in range(self.num_runs):
-            print(f"Progress: {i+1}/{self.num_runs}")
-            
-            # Run benchmark and collect metrics
-            runtime = self._run_math_ops()
-            times.append(runtime)
-            
-            temp = self._get_temperature()
-            if temp is not None:
-                temps.append(temp)
-                
-            power_usage = self._get_power_usage()
-            if power_usage is not None:
-                power.append(power_usage)
-                
-            mems.append(self._get_mem_free())
-        
-        # Calculate results
-        avg_time = sum(times) / len(times)
-        min_time = min(times)
-        max_time = max(times)
-        
-        # Calculate total operations and normalized performance metrics
-        total_ops = self._calculate_ops(self.max_size)
-        ops_per_second = total_ops / (avg_time / 1000)  # Convert ms to seconds
-        ops_per_second_per_mhz = ops_per_second / (self.freq / 1_000_000)
-        # Calculate theoretical total power (efficiency × MHz × cores)
-        theoretical_power = ops_per_second_per_mhz * (self.freq / 1_000_000) * self.num_cores
-        
-        results = {
-            "device": {
-                "board_type": self._detect_board_type(),
-                "cpu_freq_mhz": self.freq / 1_000_000,
-                "num_cores": self.num_cores,
-                "temp_sensor": self.has_temp_sensor,
-                "power_sensor": self.has_power_sensor
             },
             "performance": {
                 "channels": self.channels,
@@ -421,8 +357,26 @@ class UniversalBenchmark:
         return results
     
     def _detect_board_type(self):
-        """Detect the board type"""
-        return board.board_id
+        """Try to detect the board type"""
+        try:
+            import esp32
+            board_type = "esp32"
+            del esp32
+            gc.collect()
+            return board_type
+        except:
+            try:
+                import rp2
+                # Both have rp2 module, differentiate by frequency
+                board_type = "rp2350" if self.freq >= 133_000_000 else "rp2040"
+                del rp2
+                gc.collect()
+                return board_type
+            except:
+                # Fall back to other detection methods
+                if self.freq >= 133_000_000:
+                    return "unknown_highfreq"
+                return "unknown_lowfreq"
         
     def format_number(self, n):
         """Format a number for JSON output without scientific notation"""
@@ -443,6 +397,16 @@ class UniversalBenchmark:
     def print_results(self, results):
         """Print results in nicely formatted JSON to stdout"""
         try:
+            meta_order = [
+                "Source version",
+                "Source code",
+                "Source repo",
+                "Test date",
+                "Tester",
+                "Firmware",
+                "Notes"
+            ]
+            
             device_order = [
                 "cpu_freq_mhz",
                 "board_type",
@@ -475,6 +439,13 @@ class UniversalBenchmark:
             # Build JSON string with proper formatting
             output = []
             output.append("{")
+            
+            # Metadata section
+            output.append('    "_meta": {')
+            for i, key in enumerate(meta_order):
+                comma = "," if i < len(meta_order) - 1 else ""
+                output.append('        "{}": {}{}'.format(key, self.format_number(results["_meta"][key]), comma))
+            output.append("    },")
             
             # Device section
             output.append('    "device": {')
