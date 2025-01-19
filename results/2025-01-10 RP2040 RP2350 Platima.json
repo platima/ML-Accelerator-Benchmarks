@@ -1,5 +1,8 @@
 {
-        {
+        "_meta": {
+            "Source version": 0.1,
+            "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/816c4b2387aaf601e4a23f96c9798f3b306a766d/micropython-benchmark.py",
+        },
         "device": {
             "cpu_freq_mhz": 125,
             "board_type": "rp2040",
