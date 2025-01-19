@@ -1,0 +1,36 @@
+{
+    "_meta": {
+        "Source version": "0.2",
+        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/circuitpython-benchmark.py",
+        "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
+        "Test date": "2025-01-19",
+        "Tester": "Platima",
+        "Firmware": "https://downloads.circuitpython.org/bin/espressif_esp32p4_function_ev/en_US/adafruit-circuitpython-espressif_esp32p4_function_ev-en_US-9.2.3.bin",
+        "Notes": "Results using matrix 15 less due to memory bug"
+    },
+    "device": {
+        "board_type": "espressif_esp32p4_function_ev",
+        "cpu_freq_mhz": 360.000,
+        "num_cores": 1,
+        "temp_sensor": true,
+        "power_sensor": false
+    },
+    "performance": {
+        "channels": 3,
+        "array_size": 241,
+        "memory_total": 33083904,
+        "memory_used": 1270256,
+        "min_inference_ms": 19044.734,
+        "max_inference_ms": 19047.633,
+        "avg_inference_ms": 19045.531,
+        "throughput_fps": 0.053,
+        "avg_temperature": 27.300,
+        "max_temperature": 28.000
+    },
+    "benchmark": {
+        "total_ops": 42341049,
+        "ops_per_second": 2223149.000,
+        "normalized_score": 6175.414,
+        "theoretical_power": 2223149.000
+    }
+}
