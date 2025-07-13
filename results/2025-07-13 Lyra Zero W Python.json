@@ -1,0 +1,36 @@
+{
+    "_meta": {
+        "Source version": "0.2-python",
+        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/python-benchmark.py",
+        "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
+        "Test date": "2025-07-13",
+        "Tester": "Platima",
+        "Firmware": "Standard Python with NumPy",
+        "Notes": "Adapted from MicroPython version"
+    },
+    "device": {
+        "board_type": "arm_linux",
+        "cpu_freq_mhz": 1000.000,
+        "num_cores": 3,
+        "temp_sensor": true,
+        "power_sensor": false
+    },
+    "performance": {
+        "channels": 3,
+        "array_size": 490,
+        "memory_total": 386465792,
+        "memory_used": 8736768,
+        "min_inference_ms": 6263,
+        "max_inference_ms": 6268,
+        "avg_inference_ms": 6265.600,
+        "throughput_fps": 0.160,
+        "avg_temperature": 43.890,
+        "max_temperature": 44.603
+    },
+    "benchmark": {
+        "total_ops": 354387600,
+        "ops_per_second": 56560840.143,
+        "normalized_score": 56560.840,
+        "theoretical_power": 169682520.429
+    }
+}
