@@ -9,8 +9,8 @@ License: See GitHub repository (link below)
 
 # Benchmark metadata
 __version__ = "0.4.0"
-__repo__ = "https://github.com/platima/ml-accelerator-benchmark"
-__source__ = "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/circuitpython-benchmark.py"
+__repo__ = "https://github.com/platima/ML-Accelerator-Benchmarks"
+__source__ = "https://github.com/platima/ML-Accelerator-Benchmarks/blob/v" + __version__ + "/benchmarks/circuitpython-benchmark.py"
 __author__ = "Platima"
 __firmware__ = "TBC"
 __notes__ = ""

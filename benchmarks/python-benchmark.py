@@ -11,8 +11,8 @@ License: See GitHub repository (link below)
 
 # Benchmark metadata
 __version__ = "0.4.0"
-__repo__ = "https://github.com/platima/ml-accelerator-benchmark"
-__source__ = "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/python-benchmark.py"
+__repo__ = "https://github.com/platima/ML-Accelerator-Benchmarks"
+__source__ = "https://github.com/platima/ML-Accelerator-Benchmarks/blob/v" + __version__ + "/benchmarks/python-benchmark.py"
 __author__ = "Platima"
 __firmware__ = "Standard Python with NumPy"
 __notes__ = "Adapted from MicroPython version"
