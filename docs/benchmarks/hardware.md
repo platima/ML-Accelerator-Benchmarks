@@ -13,16 +13,19 @@
 
 The following platforms are planned for testing before the next release:
 
-| Device | Architecture | Runtime | Notes |
-|--------|-------------|---------|-------|
-| i7-14700K | x86-64 | CPython | Desktop baseline |
-| Luckfox Omni3576 (RK3576) | ARM64 | CPython | Debian Linux |
-| SpacemiT MUSE Pi Pro (K1) | RISC-V 64 | CPython | Ubuntu Linux |
-| Luckfox Pico Zero (RV1106) | ARM32 | CPython | Buildroot Linux |
-| Milk-V Duo 256 (C906) | RISC-V 64 | CPython | Buildroot Linux |
-| ESP32-S3 | Xtensa LX7 | MicroPython | Dual-core |
-| ESP32-C6 | RISC-V 32 | MicroPython | Single-core |
-| ESP32 (D0WDR2) | Xtensa LX6 | MicroPython | Dual-core, legacy |
+| Device | Architecture | Runtime | Board Detection ID |
+|--------|-------------|---------|-------------------|
+| i7-14700K | x86-64 | CPython | `x86_64_linux` or `windows` |
+| Luckfox Omni3576 (RK3576) | ARM64 | CPython | `luckfox_omni3576` |
+| SpacemiT MUSE Pi Pro (K1) | RISC-V 64 | CPython | `spacemit_k1` |
+| Luckfox Pico Zero (RV1106) | ARM32 | CPython | `luckfox_pico` |
+| Milk-V Duo 256 (C906) | RISC-V 64 | CPython | `milkv_duo` |
+| ESP32-S3 | Xtensa LX7 | MicroPython | `esp32s3` |
+| ESP32-C6 | RISC-V 32 | MicroPython | `esp32c6` |
+| ESP32 (D0WDR2) | Xtensa LX6 | MicroPython | `esp32` |
+| RP2350 | ARM Cortex-M33 | MicroPython | `rp2350` |
+| RP2040 | ARM Cortex-M0+ | CircuitPython | `rp2040` |
+| RP2350 | ARM Cortex-M33 | CircuitPython | `rp2350` |
 
 ## Hardware Detection Methods
 
