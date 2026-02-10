@@ -16,6 +16,7 @@ __firmware__ = "https://github.com/pimoroni/pimoroni-pico-rp2350/releases/downlo
 __notes__ = ""
 
 # Imports
+import sys
 import time
 import json
 import machine
@@ -44,23 +45,41 @@ class UniversalBenchmark:
         self.output_array = None
     
     def _detect_core_count(self):
-        """Detect number of CPU cores"""
+        """Detect number of CPU cores.
+
+        Uses sys.implementation._machine to identify the chip and return
+        the correct core count. Falls back to 1 if detection fails.
+        """
         try:
-            # ESP32 method
-            import esp32
-            cores = esp32.CORES
-            del esp32
-            gc.collect()
-            return esp32.CORES
-        except:
-            try:
-                # RP2 method
-                import rp2
-                del rp2
-                gc.collect()
-                return 2  # RP2040 always has 2 cores
-            except:
-                return 1  # Default to single core
+            machine_str = sys.implementation._machine.upper()
+
+            # ESP32 variants — dual-core Xtensa LX6
+            if "ESP32" in machine_str and "S2" not in machine_str and \
+               "S3" not in machine_str and "C" not in machine_str and \
+               "H" not in machine_str:
+                return 2
+
+            # ESP32-S3 — dual-core Xtensa LX7
+            if "ESP32-S3" in machine_str or "ESP32S3" in machine_str:
+                return 2
+
+            # ESP32-S2, ESP32-C3, ESP32-C6, ESP32-H2 — single-core
+            if any(tag in machine_str for tag in [
+                "ESP32-S2", "ESP32S2",
+                "ESP32-C3", "ESP32C3",
+                "ESP32-C6", "ESP32C6",
+                "ESP32-H2", "ESP32H2",
+            ]):
+                return 1
+
+            # RP2040 / RP2350 — both dual-core
+            if "RP2" in machine_str:
+                return 2
+
+        except (AttributeError, TypeError):
+            pass
+
+        return 1  # Default to single core if detection fails
     
     def _setup_hardware_monitoring(self):
         """Setup hardware-specific monitoring"""
