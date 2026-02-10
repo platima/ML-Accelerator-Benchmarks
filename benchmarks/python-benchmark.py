@@ -388,52 +388,103 @@ class UniversalBenchmark:
         return results
     
     def _detect_board_type(self):
-        """Try to detect the board type"""
+        """Detect the board type on Linux SBCs and desktops.
+
+        Checks device tree model files, /proc/cpuinfo, and platform.machine()
+        to identify the board. Covers Raspberry Pi (individual models),
+        Luckfox (RV1106, RK3576), Milk-V Duo, SpacemiT K1, Orange Pi,
+        Rock Pi, Jetson, and generic ARM/RISC-V/x86-64 Linux systems.
+        """
+        # Try device tree model first — most reliable on Linux SBCs
+        model_str = self._read_device_tree_model()
+
+        if model_str:
+            model = model_str.lower()
+
+            # Raspberry Pi
+            if 'raspberry pi' in model:
+                if '5' in model:
+                    return "raspberry_pi_5"
+                elif '4' in model:
+                    return "raspberry_pi_4"
+                elif '3' in model:
+                    return "raspberry_pi_3"
+                elif '2' in model:
+                    return "raspberry_pi_2"
+                elif 'zero 2' in model:
+                    return "raspberry_pi_zero2w"
+                elif 'zero' in model:
+                    return "raspberry_pi_zero"
+                else:
+                    return "raspberry_pi_unknown"
+
+            # Luckfox boards
+            if 'luckfox' in model:
+                if 'pico' in model:
+                    return "luckfox_pico"
+                elif 'omni' in model or '3576' in model:
+                    return "luckfox_omni3576"
+                else:
+                    return "luckfox_unknown"
+
+            # Rockchip identifiers (generic)
+            if any(tag in model for tag in ['rv1103', 'rv1106']):
+                return "rockchip_rv1106"
+            if any(tag in model for tag in ['rk3576', 'rk3588']):
+                return "rockchip_rk3576"
+
+            # Milk-V boards
+            if 'milk-v' in model or 'milkv' in model:
+                if 'duo' in model:
+                    return "milkv_duo"
+                elif 'mars' in model:
+                    return "milkv_mars"
+                else:
+                    return "milkv_unknown"
+
+            # CVITEK / Sophgo (Milk-V Duo uses CV1800B / SG2002)
+            if any(tag in model for tag in ['cv1800', 'sg200', 'sophgo']):
+                return "milkv_duo"
+
+            # SpacemiT K1
+            if 'spacemit' in model or 'muse' in model or 'k1' in model:
+                return "spacemit_k1"
+
+            # Orange Pi, Rock Pi, Jetson
+            if 'orange pi' in model:
+                return "orange_pi"
+            if 'rock' in model:
+                return "rock_pi"
+            if 'jetson' in model:
+                return "nvidia_jetson"
+
+        # Fallback: check /proc/cpuinfo for BCM chips (Raspberry Pi)
         try:
-            # Check if we're on a Raspberry Pi
             with open('/proc/cpuinfo', 'r') as f:
                 cpuinfo = f.read().lower()
-                if 'raspberry pi' in cpuinfo:
-                    if 'bcm2711' in cpuinfo or 'bcm2712' in cpuinfo:
-                        return "raspberry_pi_4_5"
-                    elif 'bcm2837' in cpuinfo:
-                        return "raspberry_pi_3"
-                    elif 'bcm2835' in cpuinfo or 'bcm2836' in cpuinfo:
-                        return "raspberry_pi_1_2"
-                    else:
-                        return "raspberry_pi_unknown"
+                if 'bcm2712' in cpuinfo:
+                    return "raspberry_pi_5"
+                elif 'bcm2711' in cpuinfo:
+                    return "raspberry_pi_4"
+                elif 'bcm2837' in cpuinfo:
+                    return "raspberry_pi_3"
+                elif 'bcm2835' in cpuinfo or 'bcm2836' in cpuinfo:
+                    return "raspberry_pi_1_2"
         except (OSError, IOError):
             pass
-        
-        # Check for other SBC indicators
-        try:
-            # Check for specific board files
-            board_files = [
-                '/sys/firmware/devicetree/base/model',
-                '/proc/device-tree/model'
-            ]
-            
-            for board_file in board_files:
-                if os.path.exists(board_file):
-                    with open(board_file, 'r') as f:
-                        model = f.read().strip().lower()
-                        if 'orange pi' in model:
-                            return "orange_pi"
-                        elif 'rock' in model:
-                            return "rock_pi"
-                        elif 'jetson' in model:
-                            return "nvidia_jetson"
-        except (OSError, IOError):
-            pass
-        
+
         # Fall back to platform detection
         system = platform.system().lower()
-        machine = platform.machine().lower()
-        
+        machine_arch = platform.machine().lower()
+
         if system == 'linux':
-            if any(arch in machine for arch in ['arm', 'aarch64']):
-                return "arm_linux"
-            elif any(arch in machine for arch in ['x86_64', 'amd64']):
+            if 'riscv' in machine_arch or 'rv64' in machine_arch:
+                return "riscv64_linux"
+            elif 'aarch64' in machine_arch:
+                return "arm64_linux"
+            elif 'arm' in machine_arch:
+                return "arm32_linux"
+            elif any(arch in machine_arch for arch in ['x86_64', 'amd64']):
                 return "x86_64_linux"
             else:
                 return "unknown_linux"
@@ -443,6 +494,25 @@ class UniversalBenchmark:
             return "windows"
         else:
             return "unknown_platform"
+
+    def _read_device_tree_model(self):
+        """Read the device tree model string from /proc or /sys.
+
+        Returns the model string, or None if unavailable.
+        """
+        board_files = [
+            '/proc/device-tree/model',
+            '/sys/firmware/devicetree/base/model',
+        ]
+        for path in board_files:
+            try:
+                if os.path.exists(path):
+                    with open(path, 'r') as f:
+                        # Strip null bytes that device tree strings often have
+                        return f.read().strip().rstrip('\x00')
+            except (OSError, IOError):
+                pass
+        return None
     
     def format_number(self, n):
         """Format a number for JSON output without scientific notation"""
