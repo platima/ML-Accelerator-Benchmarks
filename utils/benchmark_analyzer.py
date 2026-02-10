@@ -1,302 +1,336 @@
 #!/usr/bin/env python3
 """
-SoC Benchmark Analyzer
-Analyzes and compares benchmark results from various SoCs.
-Features:
-- Performance scoring
-- Comparative analysis
-- Visualization
-- Detailed reporting
+Benchmark Analyser
+
+Loads, scores, and compares benchmark result JSON files produced by the
+ML Accelerator Benchmark suite.  Works with the actual result format
+(``_meta``, ``device``, ``performance``, ``benchmark`` sections).
+
+Usage::
+
+    python -m utils.benchmark_analyzer --results results/*.json
+    python -m utils.benchmark_analyzer --results-dir results/
 """
 
 import os
 import json
 import argparse
-import numpy as np
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Optional
 from dataclasses import dataclass
-import matplotlib.pyplot as plt
-from datetime import datetime
+
 
 @dataclass
 class BenchmarkResult:
-    soc_name: str
-    model_name: str
-    accelerator_type: str
-    inference_time: float
-    memory_usage: float
-    power_usage: Optional[float]
-    throughput: float
-    quantization: Optional[str]
-    input_shape: tuple
-    cpu_usage: float
-    temperature: Optional[float]
-    timestamp: str
-    batch_size: int
+    """Parsed representation of a single benchmark result file.
 
-class PerformanceScorer:
-    def __init__(self):
-        # Reference values for normalization (based on typical edge NPU performance)
-        self.reference = {
-            "inference_time": 10.0,    # ms
-            "power_usage": 2.0,        # watts
-            "memory_usage": 100.0,     # MB
-            "temperature": 60.0,       # celsius
-            "throughput": 100.0,       # FPS
-            "cpu_usage": 20.0          # percent
-        }
+    All fields map directly to the JSON structure emitted by the three
+    benchmark scripts (``python-benchmark.py``, ``micropython-benchmark.py``,
+    ``circuitpython-benchmark.py``).
+    """
 
-        # Scoring weights (total = 100)
-        self.weights = {
-            "inference": 40,   # Speed is most important
-            "power": 20,       # Power efficiency
-            "memory": 15,      # Memory usage
-            "thermal": 10,     # Temperature management
-            "cpu": 10,         # CPU utilization
-            "batch": 5         # Batch processing capability
-        }
+    # _meta
+    source_version: str = ""
+    source_code: str = ""
+    source_repo: str = ""
+    test_date: str = ""
+    tester: str = ""
+    firmware: str = ""
+    notes: str = ""
 
-    def calculate_score(self, result: BenchmarkResult) -> Dict:
-        scores = {}
-        
-        # Inference Score (lower is better)
-        inference_ratio = self.reference["inference_time"] / max(result.inference_time, 0.1)
-        scores["inference"] = min(inference_ratio * self.weights["inference"], self.weights["inference"])
-        
-        # Power Score (lower is better)
-        if result.power_usage:
-            power_ratio = self.reference["power_usage"] / max(result.power_usage, 0.1)
-            scores["power"] = min(power_ratio * self.weights["power"], self.weights["power"])
-        else:
-            scores["power"] = 0
-        
-        # Memory Score (lower is better)
-        memory_ratio = self.reference["memory_usage"] / max(result.memory_usage, 1.0)
-        scores["memory"] = min(memory_ratio * self.weights["memory"], self.weights["memory"])
-        
-        # Thermal Score (lower is better)
-        if result.temperature:
-            temp_ratio = self.reference["temperature"] / max(result.temperature, 30.0)
-            scores["thermal"] = min(temp_ratio * self.weights["thermal"], self.weights["thermal"])
-        else:
-            scores["thermal"] = 0
-        
-        # CPU Usage Score (lower is better)
-        cpu_ratio = self.reference["cpu_usage"] / max(result.cpu_usage, 1.0)
-        scores["cpu"] = min(cpu_ratio * self.weights["cpu"], self.weights["cpu"])
-        
-        # Batch Processing Score (higher is better)
-        batch_ratio = result.throughput / self.reference["throughput"]
-        scores["batch"] = min(batch_ratio * self.weights["batch"], self.weights["batch"])
-        
-        # Calculate total score (0-100)
-        total_score = sum(scores.values())
-        
-        # Calculate performance metrics
-        metrics = {
-            "inferences_per_watt": (
-                result.throughput / result.power_usage if result.power_usage else None
-            ),
-            "inferences_per_mb": result.throughput / result.memory_usage,
-            "power_efficiency": (
-                result.throughput / (result.power_usage * result.memory_usage) 
-                if result.power_usage else None
-            )
-        }
-        
-        return {
-            "total_score": round(total_score, 1),
-            "subscores": {k: round(v, 1) for k, v in scores.items()},
-            "metrics": {k: round(v, 2) if v else None for k, v in metrics.items()}
-        }
+    # device
+    board_type: str = "unknown"
+    cpu_freq_mhz: float = 0.0
+    num_cores: int = 1
+    temp_sensor: bool = False
+    power_sensor: bool = False
 
-    def get_performance_tier(self, score: float) -> str:
-        """Maps score to a performance tier"""
-        if score >= 90:
-            return "Elite (Server Grade)"
-        elif score >= 80:
-            return "Premium (Edge Server)"
-        elif score >= 70:
-            return "High-End (Edge Device)"
-        elif score >= 60:
-            return "Mid-Range (Mobile)"
-        elif score >= 50:
-            return "Entry-Level (IoT)"
-        elif score >= 40:
-            return "Basic (MCU)"
-        else:
-            return "Limited (CPU Only)"
+    # performance
+    channels: int = 3
+    array_size: int = 0
+    memory_total: float = 0.0
+    memory_used: float = 0.0
+    min_inference_ms: float = 0.0
+    max_inference_ms: float = 0.0
+    avg_inference_ms: float = 0.0
+    throughput_fps: float = 0.0
+    avg_temperature: Optional[float] = None
+    max_temperature: Optional[float] = None
 
-class BenchmarkAnalyzer:
-    def __init__(self, results_files: List[str]):
-        self.results = []
-        self.scorer = PerformanceScorer()
-        
-        for file_path in results_files:
-            with open(file_path, 'r') as f:
-                data = json.load(f)
-                # Extract result from nested structure
-                result_data = data['results']
-                # Convert input_shape from list to tuple
-                result_data['input_shape'] = tuple(result_data['input_shape'])
-                self.results.append(BenchmarkResult(**result_data))
+    # benchmark
+    total_ops: float = 0.0
+    ops_per_second: float = 0.0
+    normalized_score: float = 0.0
+    theoretical_power: float = 0.0
+
+    # convenience
+    filename: str = ""
+
+
+def load_result(filepath: str) -> BenchmarkResult:
+    """Load a single benchmark result JSON file into a ``BenchmarkResult``.
+
+    Args:
+        filepath: Path to the ``.json`` result file.
+
+    Returns:
+        A populated ``BenchmarkResult`` instance.
+
+    Raises:
+        FileNotFoundError: If *filepath* does not exist.
+        json.JSONDecodeError: If the file is not valid JSON.
+    """
+    with open(filepath, "r") as fh:
+        data = json.load(fh)
+
+    meta = data.get("_meta", {})
+    device = data.get("device", {})
+    perf = data.get("performance", {})
+    bench = data.get("benchmark", {})
+
+    return BenchmarkResult(
+        source_version=meta.get("Source version", ""),
+        source_code=meta.get("Source code", ""),
+        source_repo=meta.get("Source repo", ""),
+        test_date=meta.get("Test date", ""),
+        tester=meta.get("Tester", ""),
+        firmware=meta.get("Firmware", ""),
+        notes=meta.get("Notes", ""),
+        board_type=device.get("board_type", "unknown"),
+        cpu_freq_mhz=device.get("cpu_freq_mhz", 0.0),
+        num_cores=device.get("num_cores", 1),
+        temp_sensor=device.get("temp_sensor", False),
+        power_sensor=device.get("power_sensor", False),
+        channels=perf.get("channels", 3),
+        array_size=perf.get("array_size", 0),
+        memory_total=perf.get("memory_total", 0.0),
+        memory_used=perf.get("memory_used", 0.0),
+        min_inference_ms=perf.get("min_inference_ms", 0.0),
+        max_inference_ms=perf.get("max_inference_ms", 0.0),
+        avg_inference_ms=perf.get("avg_inference_ms", 0.0),
+        throughput_fps=perf.get("throughput_fps", 0.0),
+        avg_temperature=perf.get("avg_temperature"),
+        max_temperature=perf.get("max_temperature"),
+        total_ops=bench.get("total_ops", 0.0),
+        ops_per_second=bench.get("ops_per_second", 0.0),
+        normalized_score=bench.get("normalized_score", 0.0),
+        theoretical_power=bench.get("theoretical_power", 0.0),
+        filename=os.path.basename(filepath),
+    )
+
+
+class BenchmarkAnalyser:
+    """Load and analyse a collection of benchmark results.
+
+    Args:
+        results_dir: Directory containing ``*.json`` result files.
+            If provided, all JSON files in the directory are loaded.
+        result_files: Explicit list of file paths to load.
+    """
+
+    def __init__(
+        self,
+        results_dir: Optional[str] = None,
+        result_files: Optional[List[str]] = None,
+    ):
+        self.results: List[BenchmarkResult] = []
+
+        if results_dir:
+            results_path = Path(results_dir)
+            for fp in sorted(results_path.glob("*.json")):
+                if fp.name == "results-schema.json":
+                    continue
+                try:
+                    self.results.append(load_result(str(fp)))
+                except (json.JSONDecodeError, KeyError) as exc:
+                    print("Warning: skipping {}: {}".format(fp.name, exc))
+
+        if result_files:
+            for fp in result_files:
+                try:
+                    self.results.append(load_result(fp))
+                except (json.JSONDecodeError, KeyError) as exc:
+                    print("Warning: skipping {}: {}".format(fp, exc))
+
+    def sorted_by(
+        self, key: str = "normalized_score", reverse: bool = True
+    ) -> List[BenchmarkResult]:
+        """Return results sorted by the given attribute.
+
+        Args:
+            key: Attribute name on ``BenchmarkResult`` to sort by.
+            reverse: If ``True`` (default), sort descending (best first).
+
+        Returns:
+            A new sorted list of ``BenchmarkResult`` instances.
+        """
+        return sorted(
+            self.results, key=lambda r: getattr(r, key, 0), reverse=reverse
+        )
 
     def generate_comparison_table(self) -> str:
-        """Generates a formatted comparison table"""
-        headers = ["SoC", "Score", "Tier", "FPS", "Power(W)", "Temp(°C)"]
-        rows = []
-        
-        for result in sorted(self.results, 
-                           key=lambda x: self.scorer.calculate_score(x)["total_score"],
-                           reverse=True):
-            score_data = self.scorer.calculate_score(result)
-            rows.append([
-                result.soc_name,
-                f"{score_data['total_score']:>5.1f}",
-                self.scorer.get_performance_tier(score_data['total_score']),
-                f"{result.throughput:>6.1f}",
-                f"{result.power_usage:>5.1f}" if result.power_usage else "N/A",
-                f"{result.temperature:>5.1f}" if result.temperature else "N/A"
-            ])
-        
-        # Format as table
-        col_widths = [
-            max(len(str(row[i])) for row in rows + [headers])
-            for i in range(len(headers))
+        """Generate a formatted text comparison table.
+
+        Returns:
+            A multi-line string table comparing all loaded results by
+            normalised score, ops/second, array size, and more.
+        """
+        ranked = self.sorted_by("normalized_score")
+
+        headers = [
+            "Board",
+            "Date",
+            "Array",
+            "Avg ms",
+            "Ops/s",
+            "Norm Score",
+            "Cores",
+            "MHz",
         ]
-        
-        table = ""
-        # Add headers
-        for i, header in enumerate(headers):
-            table += f"{header:<{col_widths[i]}} "
-        table += "\n" + "-" * sum(col_widths) + "\n"
-        
-        # Add rows
+
+        rows = []
+        for r in ranked:
+            rows.append(
+                [
+                    r.board_type,
+                    r.test_date,
+                    str(r.array_size),
+                    "{:.1f}".format(r.avg_inference_ms),
+                    _fmt_large(r.ops_per_second),
+                    "{:.1f}".format(r.normalized_score),
+                    str(r.num_cores),
+                    "{:.0f}".format(r.cpu_freq_mhz),
+                ]
+            )
+
+        col_widths = [
+            max(len(h), *(len(row[i]) for row in rows))
+            for i, h in enumerate(headers)
+        ]
+
+        lines = []
+        header_line = "  ".join(
+            h.ljust(col_widths[i]) for i, h in enumerate(headers)
+        )
+        lines.append(header_line)
+        lines.append("-" * len(header_line))
+
         for row in rows:
-            for i, item in enumerate(row):
-                table += f"{str(item):<{col_widths[i]}} "
-            table += "\n"
-        
-        return table
+            lines.append(
+                "  ".join(
+                    cell.ljust(col_widths[i]) for i, cell in enumerate(row)
+                )
+            )
 
-    def generate_visualizations(self, output_path: str):
-        """Generates comparative visualizations"""
-        fig = plt.figure(figsize=(15, 10))
-        fig.suptitle("SoC Benchmark Comparison")
-        
-        # Performance Scores
-        ax1 = plt.subplot(2, 2, 1)
-        scores = [self.scorer.calculate_score(r)["total_score"] for r in self.results]
-        names = [r.soc_name for r in self.results]
-        ax1.bar(names, scores)
-        ax1.set_title("Performance Scores")
-        ax1.set_ylabel("Score")
-        plt.xticks(rotation=45)
-        
-        # Inference Time
-        ax2 = plt.subplot(2, 2, 2)
-        times = [r.inference_time for r in self.results]
-        ax2.bar(names, times)
-        ax2.set_title("Inference Time")
-        ax2.set_ylabel("Time (ms)")
-        plt.xticks(rotation=45)
-        
-        # Power Usage
-        ax3 = plt.subplot(2, 2, 3)
-        power = [r.power_usage for r in self.results if r.power_usage]
-        power_names = [r.soc_name for r in self.results if r.power_usage]
-        ax3.bar(power_names, power)
-        ax3.set_title("Power Usage")
-        ax3.set_ylabel("Power (W)")
-        plt.xticks(rotation=45)
-        
-        # Throughput
-        ax4 = plt.subplot(2, 2, 4)
-        fps = [r.throughput for r in self.results]
-        ax4.bar(names, fps)
-        ax4.set_title("Throughput")
-        ax4.set_ylabel("FPS")
-        plt.xticks(rotation=45)
-        
-        plt.tight_layout()
-        plt.savefig(output_path)
-        plt.close()
+        return "\n".join(lines)
 
-    def generate_report(self, output_path: str):
-        """Generates a comprehensive report"""
-        report = "SoC Benchmark Analysis Report\n"
-        report += "=" * 80 + "\n"
-        report += f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-        
-        # Add comparison table
-        report += "Performance Comparison\n"
-        report += "-" * 80 + "\n"
-        report += self.generate_comparison_table()
-        report += "\n"
-        
-        # Detailed results for each SoC
-        report += "Detailed Analysis\n"
-        report += "-" * 80 + "\n"
-        
-        for result in sorted(self.results, 
-                           key=lambda x: self.scorer.calculate_score(x)["total_score"],
-                           reverse=True):
-            score_data = self.scorer.calculate_score(result)
-            
-            report += f"\nSoC: {result.soc_name}\n"
-            report += f"Model: {result.model_name}\n"
-            report += f"Accelerator: {result.accelerator_type}\n"
-            report += f"Overall Score: {score_data['total_score']:.1f} "
-            report += f"({self.scorer.get_performance_tier(score_data['total_score'])})\n"
-            
-            report += "\nPerformance Subscores:\n"
-            for name, score in score_data['subscores'].items():
-                report += f"  {name:<12}: {score:>6.1f}\n"
-            
-            report += "\nPerformance Metrics:\n"
-            report += f"  Inference Time: {result.inference_time:>6.1f} ms\n"
-            report += f"  Throughput: {result.throughput:>6.1f} FPS\n"
-            report += f"  Memory Usage: {result.memory_usage:>6.1f} MB\n"
-            if result.power_usage:
-                report += f"  Power Usage: {result.power_usage:>6.1f} W\n"
-            if result.temperature:
-                report += f"  Temperature: {result.temperature:>6.1f}°C\n"
-            
-            report += "\nEfficiency Metrics:\n"
-            for name, value in score_data['metrics'].items():
-                if value is not None:
-                    report += f"  {name:<20}: {value:>6.2f}\n"
-            
-            report += "-" * 40 + "\n"
-        
-        with open(output_path, 'w') as f:
-            f.write(report)
-        
-        return report
+    def generate_report(self) -> str:
+        """Generate a full-text analysis report.
+
+        Returns:
+            A multi-line report string with comparison table and per-device
+            detail sections.
+        """
+        lines = [
+            "ML Accelerator Benchmark Analysis Report",
+            "=" * 60,
+            "",
+            "Comparison Table",
+            "-" * 60,
+            self.generate_comparison_table(),
+            "",
+        ]
+
+        for r in self.sorted_by("normalized_score"):
+            lines.append("")
+            lines.append("Device: {} ({})".format(r.board_type, r.test_date))
+            lines.append("-" * 40)
+            lines.append("  Version:      {}".format(r.source_version))
+            lines.append("  Firmware:     {}".format(r.firmware))
+            lines.append("  Cores:        {}".format(r.num_cores))
+            lines.append("  Frequency:    {:.0f} MHz".format(r.cpu_freq_mhz))
+            lines.append(
+                "  Array size:   {}x{}".format(r.array_size, r.array_size)
+            )
+            lines.append(
+                "  Memory used:  {} bytes".format(int(r.memory_used))
+            )
+            lines.append(
+                "  Avg time:     {:.3f} ms".format(r.avg_inference_ms)
+            )
+            lines.append(
+                "  Ops/second:   {}".format(_fmt_large(r.ops_per_second))
+            )
+            lines.append(
+                "  Norm. score:  {:.2f}".format(r.normalized_score)
+            )
+
+            if r.avg_temperature is not None:
+                lines.append(
+                    "  Avg temp:     {:.1f} °C".format(r.avg_temperature)
+                )
+            if r.notes:
+                lines.append("  Notes:        {}".format(r.notes))
+
+        return "\n".join(lines)
+
+
+def _fmt_large(n: float) -> str:
+    """Format a large number with K/M/G suffix."""
+    if abs(n) >= 1e9:
+        return "{:.2f}G".format(n / 1e9)
+    elif abs(n) >= 1e6:
+        return "{:.2f}M".format(n / 1e6)
+    elif abs(n) >= 1e3:
+        return "{:.2f}K".format(n / 1e3)
+    else:
+        return "{:.2f}".format(n)
+
 
 def main():
-    parser = argparse.ArgumentParser(description='Analyze SoC benchmark results')
-    parser.add_argument('--results', nargs='+', required=True,
-                       help='Paths to benchmark result JSON files')
-    parser.add_argument('--output-dir', type=str, default='.',
-                       help='Output directory for analysis files')
+    """CLI entry point for analysing benchmark results."""
+    parser = argparse.ArgumentParser(
+        description="Analyse ML Accelerator Benchmark results"
+    )
+    parser.add_argument(
+        "--results", nargs="+", help="Paths to individual result JSON files"
+    )
+    parser.add_argument(
+        "--results-dir",
+        type=str,
+        default=None,
+        help="Directory containing result JSON files (default: results/)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Write report to this file instead of stdout",
+    )
     args = parser.parse_args()
 
-    analyzer = BenchmarkAnalyzer(args.results)
-    
-    # Create output directory if it doesn't exist
-    os.makedirs(args.output_dir, exist_ok=True)
-    
-    # Generate report
-    report_path = os.path.join(args.output_dir, 'benchmark_report.txt')
-    analyzer.generate_report(report_path)
-    print(f"Report generated: {report_path}")
-    
-    # Generate visualizations
-    viz_path = os.path.join(args.output_dir, 'benchmark_comparison.png')
-    analyzer.generate_visualizations(viz_path)
-    print(f"Visualizations generated: {viz_path}")
+    # Default to results/ directory if nothing specified
+    results_dir = args.results_dir
+    if not args.results and not results_dir:
+        results_dir = "results"
 
-if __name__ == '__main__':
+    analyser = BenchmarkAnalyser(
+        results_dir=results_dir, result_files=args.results
+    )
+
+    if not analyser.results:
+        print("No valid result files found.")
+        return
+
+    report = analyser.generate_report()
+
+    if args.output:
+        with open(args.output, "w") as fh:
+            fh.write(report)
+        print("Report written to {}".format(args.output))
+    else:
+        print(report)
+
+
+if __name__ == "__main__":
     main()
