@@ -1,0 +1,64 @@
+site_name: ML Accelerator Benchmarks
+site_description: A benchmarking suite for ML-relevant matrix operations across microcontrollers and single-board computers
+site_url: https://platima.github.io/ML-Accelerator-Benchmarks/
+repo_url: https://github.com/platima/ML-Accelerator-Benchmarks
+repo_name: platima/ML-Accelerator-Benchmarks
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+    - search.suggest
+  palette:
+    - scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [.]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            members_order: source
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Benchmarks:
+      - Overview: benchmarks/index.md
+      - Running Benchmarks: benchmarks/running.md
+      - Hardware Compatibility: benchmarks/hardware.md
+      - Understanding Results: benchmarks/results.md
+  - API Reference:
+      - Overview: api/index.md
+      - BenchmarkAnalyzer: api/benchmark_analyzer.md
+      - HardwareDetector: api/hardware_detect.md
+      - ResultsHandler: api/results_handler.md
+      - Visualisation: api/visualization.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - pymdownx.details
+  - toc:
+      permalink: true
