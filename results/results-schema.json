@@ -30,7 +30,7 @@
     },
     "performance": {
       "type": "object",
-      "required": ["channels", "array_size", "memory_total", "memory_used", "min_inference_ms", "max_inference_ms", "avg_inference_ms", "throughput_fps", "avg_temperature", "max_temperature"],
+      "required": ["channels", "array_size", "memory_total", "memory_used", "min_inference_ms", "max_inference_ms", "avg_inference_ms", "throughput_fps"],
       "properties": {
         "channels": { "type": "integer" },
         "array_size": { "type": "integer" },
@@ -50,7 +50,7 @@
       "properties": {
         "total_ops": {
           "type": "number",
-          "description": "Total operations calculated as (array_size^3 * channels + array_size^2 * channels * num_cores)"
+          "description": "Total operations calculated as (array_size^3 * channels + array_size^2 * channels * 2), where the *2 accounts for element-wise scaling and addition"
         },
         "ops_per_second": {
           "type": "number",
