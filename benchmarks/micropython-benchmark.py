@@ -400,26 +400,43 @@ class UniversalBenchmark:
         return results
     
     def _detect_board_type(self):
-        """Try to detect the board type"""
+        """Detect the board type using sys.implementation._machine.
+
+        Parses the machine string to identify the chip family. Falls back
+        to frequency-based heuristics if the machine string is unavailable.
+        """
         try:
-            import esp32
-            board_type = "esp32"
-            del esp32
-            gc.collect()
-            return board_type
-        except:
-            try:
-                import rp2
-                # Both have rp2 module, differentiate by frequency
-                board_type = "rp2350" if self.freq >= 133_000_000 else "rp2040"
-                del rp2
-                gc.collect()
-                return board_type
-            except:
-                # Fall back to other detection methods
-                if self.freq >= 133_000_000:
-                    return "unknown_highfreq"
-                return "unknown_lowfreq"
+            machine_str = sys.implementation._machine.upper()
+
+            # RP2350
+            if "RP2350" in machine_str:
+                return "rp2350"
+            # RP2040
+            if "RP2040" in machine_str:
+                return "rp2040"
+            # ESP32 variants — check specific variants before generic ESP32
+            if "ESP32-S3" in machine_str or "ESP32S3" in machine_str:
+                return "esp32s3"
+            if "ESP32-S2" in machine_str or "ESP32S2" in machine_str:
+                return "esp32s2"
+            if "ESP32-C6" in machine_str or "ESP32C6" in machine_str:
+                return "esp32c6"
+            if "ESP32-C3" in machine_str or "ESP32C3" in machine_str:
+                return "esp32c3"
+            if "ESP32-H2" in machine_str or "ESP32H2" in machine_str:
+                return "esp32h2"
+            if "ESP32-P4" in machine_str or "ESP32P4" in machine_str:
+                return "esp32p4"
+            if "ESP32" in machine_str:
+                return "esp32"
+        except (AttributeError, TypeError):
+            pass
+
+        # Frequency-based fallback
+        freq_mhz = self.freq / 1_000_000
+        if freq_mhz >= 133:
+            return "unknown_highfreq"
+        return "unknown_lowfreq"
     
     def format_number(self, n):
         """Format a number for JSON output without scientific notation"""
