@@ -328,11 +328,11 @@ class UniversalBenchmark:
                 "Notes": __notes__
             },
             "device": {
-                "cpu_freq_mhz": self.freq / 1_000_000,
                 "board_type": self._detect_board_type(),
+                "cpu_freq_mhz": self.freq / 1_000_000,
+                "num_cores": self.num_cores,
                 "temp_sensor": self.has_temp_sensor,
-                "power_sensor": self.has_power_sensor,
-                "num_cores": self.num_cores
+                "power_sensor": self.has_power_sensor
             },
             "performance": {
                 "channels": self.channels,
