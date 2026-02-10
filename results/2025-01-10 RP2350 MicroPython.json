@@ -6,7 +6,7 @@
         "Test date": "2025-01-10",
         "Tester": "Platima",
         "Firmware": "https://github.com/pimoroni/pimoroni-pico-rp2350/releases/download/v0.0.11/pico2-v0.0.11-pimoroni-micropython.uf2",
-        "Notes": "'benchmark' data added retrospecively by manual calculation"
+        "Notes": "'benchmark' data added retrospectively by manual calculation"
     },
     "device": {
         "board_type": "rp2350",

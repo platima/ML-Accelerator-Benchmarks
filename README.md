@@ -34,8 +34,8 @@ This benchmark suite provides standardised performance metrics for matrix operat
 
 ## Supported Hardware
 Currently tested and supported platforms:
-- RP2040 (Raspberry Pi Pico) - MicroPython + ulab (Piromoni)
-- RP2350 (Raspberry Pi Pico W 2) - MicroPython + ulab (Piromoni), CircuitPython
+- RP2040 (Raspberry Pi Pico) - MicroPython + ulab (Pimoroni)
+- RP2350 (Raspberry Pi Pico W 2) - MicroPython + ulab (Pimoroni), CircuitPython
 - ESP32-P4 - CircuitPython
 
 ## Installation
