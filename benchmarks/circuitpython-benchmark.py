@@ -369,26 +369,37 @@ class UniversalBenchmark:
         return results
     
     def _detect_board_type(self):
-        """Try to detect the board type"""
+        """Detect the board type using CircuitPython APIs.
+
+        Uses board.board_id for identification, with frequency-based
+        heuristics as a fallback.
+        """
         try:
-            import esp32
-            board_type = "esp32"
-            del esp32
-            gc.collect()
-            return board_type
-        except:
-            try:
-                import rp2 # TODO this does not exist in CircuitPython
-                # Both have rp2 module, differentiate by frequency
-                board_type = "rp2350" if self.freq >= 133_000_000 else "rp2040"
-                del rp2
-                gc.collect()
-                return board_type
-            except:
-                # Fall back to other detection methods
-                if self.freq >= 133_000_000:
-                    return "unknown_highfreq"
-                return "unknown_lowfreq"
+            # CircuitPython board.board_id gives a unique identifier
+            bid = board.board_id.lower()
+
+            if "pico2" in bid or "rp2350" in bid:
+                return "rp2350"
+            elif "pico" in bid or "rp2040" in bid:
+                return "rp2040"
+            elif "esp32_p4" in bid or "esp32p4" in bid:
+                return "esp32p4"
+            elif "esp32s3" in bid or "esp32_s3" in bid:
+                return "esp32s3"
+            elif "esp32s2" in bid or "esp32_s2" in bid:
+                return "esp32s2"
+            elif "esp32c6" in bid or "esp32_c6" in bid:
+                return "esp32c6"
+            elif "esp32" in bid:
+                return "esp32"
+        except (AttributeError, TypeError):
+            pass
+
+        # Frequency-based fallback
+        freq_mhz = self.freq / 1_000_000
+        if freq_mhz >= 133:
+            return "unknown_highfreq"
+        return "unknown_lowfreq"
         
     def format_number(self, n):
         """Format a number for JSON output without scientific notation"""
