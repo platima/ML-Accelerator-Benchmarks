@@ -142,17 +142,24 @@ class UniversalBenchmark:
             return False
     
     def _find_max_dimensions(self):
-        """Binary search for maximum supported dimensions"""
+        """Binary search for maximum supported dimensions.
+
+        Phase 1 doubles the size until failure or hitting the 256 cap.
+        Phase 2 binary-searches between last success and first failure.
+        A 0.9x safety factor is applied to the final size to reduce the
+        risk of out-of-memory errors during the actual benchmark run.
+        """
         print("\nFinding maximum supported dimensions...")
         print("--------------------------------------")
-        
+
         # Initial phase: double until failure
         size = 16
         last_success = None
-        
+        final_size = None
+
         print("Phase 1: Finding upper bound")
         while True:
-            print(f"Testing {size}x{size}...", end=" ")
+            print("Testing {}x{}...".format(size, size), end=" ")
             if self._try_create_array(size):
                 print("OK")
                 last_success = size
@@ -164,33 +171,40 @@ class UniversalBenchmark:
             else:
                 print("FAILED")
                 break
-        
+
         if last_success is None:
             print("Could not find valid starting size!")
             return 8  # Return minimum practical size
-            
-        print(f"\nPhase 2: Binary search between {last_success} and {size}")
-        
-        # Binary search between last success and failure
-        low = last_success
-        high = size
-        
-        while low < high - 1:
-            mid = (low + high) // 2
-            print(f"Testing {mid}x{mid}...", end=" ")
-            
-            if self._try_create_array(mid):
-                print("OK")
-                low = mid
-            else:
-                print("FAILED")
-                high = mid
-        
-        final_size = low
+
+        if final_size is None:
+            print("\nPhase 2: Binary search between {} and {}".format(
+                last_success, size))
+
+            # Binary search between last success and failure
+            low = last_success
+            high = size
+
+            while low < high - 1:
+                mid = (low + high) // 2
+                print("Testing {}x{}...".format(mid, mid), end=" ")
+
+                if self._try_create_array(mid):
+                    print("OK")
+                    low = mid
+                else:
+                    print("FAILED")
+                    high = mid
+
+            final_size = low
+
+        # Apply safety factor to avoid memory errors during benchmark
+        final_size = int(final_size * 0.9)
+
         print("\nResults:")
-        print(f"Maximum stable size: {final_size}x{final_size}")
+        print("Maximum stable size: {}x{} (with safety factor)".format(
+            final_size, final_size))
         print("--------------------------------------")
-        return final_size - 15 # TODO this is to avoid a memory error that I'm yet to deal with
+        return final_size
     
     def _create_benchmark_arrays(self):
         """Create actual arrays for benchmarking"""
