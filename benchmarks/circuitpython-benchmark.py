@@ -12,8 +12,15 @@ __version__ = "0.4.0"
 __repo__ = "https://github.com/platima/ML-Accelerator-Benchmarks"
 __source__ = "https://github.com/platima/ML-Accelerator-Benchmarks/blob/v" + __version__ + "/benchmarks/circuitpython-benchmark.py"
 __author__ = "Platima"
-__firmware__ = "TBC"
 __notes__ = ""
+
+# Auto-detect firmware version from the runtime
+import os as _os
+try:
+    __firmware__ = _os.uname().version
+except (AttributeError, TypeError):
+    __firmware__ = "CircuitPython (version unknown)"
+del _os
 
 import time
 import json
