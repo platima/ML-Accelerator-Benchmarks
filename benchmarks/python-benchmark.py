@@ -56,7 +56,7 @@ class UniversalBenchmark:
             freq_info = psutil.cpu_freq()
             if freq_info and freq_info.current:
                 return int(freq_info.current * 1_000_000)  # Convert MHz to Hz
-        except:
+        except (AttributeError, OSError):
             pass
         
         # Fallback: try reading from /proc/cpuinfo
@@ -66,7 +66,7 @@ class UniversalBenchmark:
                     if 'cpu MHz' in line.lower():
                         mhz = float(line.split(':')[1].strip())
                         return int(mhz * 1_000_000)
-        except:
+        except (OSError, ValueError):
             pass
         
         # Default fallback
@@ -84,7 +84,7 @@ class UniversalBenchmark:
                 with open(self.temp_path, 'r') as f:
                     f.read()
                 self.has_temp_sensor = True
-            except:
+            except (OSError, IOError):
                 pass
     
     def _get_mem_free(self):
@@ -94,7 +94,7 @@ class UniversalBenchmark:
             # Get available memory from system
             mem = psutil.virtual_memory()
             return mem.available
-        except:
+        except (AttributeError, OSError):
             return 1024 * 1024 * 1024  # 1GB fallback
     
     def _get_temperature(self):
@@ -106,7 +106,7 @@ class UniversalBenchmark:
             with open(self.temp_path, 'r') as f:
                 temp_millicelsius = int(f.read().strip())
                 return temp_millicelsius / 1000.0
-        except:
+        except (OSError, ValueError):
             return None
     
     def _get_power_usage(self):
@@ -155,7 +155,7 @@ class UniversalBenchmark:
                 # Force cleanup
                 del test_result
                 gc.collect()
-            except:
+            except (MemoryError, OverflowError):
                 return False
             
             # Clean up
@@ -164,7 +164,7 @@ class UniversalBenchmark:
             gc.collect()
                 
             return True
-        except (MemoryError, np.core._exceptions._ArrayMemoryError):
+        except (MemoryError, OverflowError, ValueError):
             gc.collect()
             return False
         except Exception as e:
@@ -402,7 +402,7 @@ class UniversalBenchmark:
                         return "raspberry_pi_1_2"
                     else:
                         return "raspberry_pi_unknown"
-        except:
+        except (OSError, IOError):
             pass
         
         # Check for other SBC indicators
@@ -423,7 +423,7 @@ class UniversalBenchmark:
                             return "rock_pi"
                         elif 'jetson' in model:
                             return "nvidia_jetson"
-        except:
+        except (OSError, IOError):
             pass
         
         # Fall back to platform detection

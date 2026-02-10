@@ -92,7 +92,7 @@ class UniversalBenchmark:
         try:
             voltage = self.voltage_pin.value * 3.3 / 65536
             return voltage
-        except:
+        except (OSError, ValueError):
             return None
     
     def _calculate_ops(self, size):
@@ -136,7 +136,7 @@ class UniversalBenchmark:
                 # Force cleanup
                 del test_result
                 gc.collect()
-            except:
+            except (MemoryError, OverflowError):
                 return False
             
             # Clean up
@@ -145,7 +145,7 @@ class UniversalBenchmark:
             gc.collect()
                 
             return True
-        except:
+        except (MemoryError, OverflowError):
             return False
     
     def _find_max_dimensions(self):

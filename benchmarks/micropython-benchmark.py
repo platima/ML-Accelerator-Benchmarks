@@ -90,14 +90,14 @@ class UniversalBenchmark:
             # Try RP2040/RP2350 temperature sensor
             self.temp_sensor = machine.ADC(4)
             self.has_temp_sensor = True
-        except:
+        except (ValueError, OSError):
             pass
             
         try:
             # Try voltage monitoring if available
             machine.ADC(29)  # Voltage monitoring pin varies by board
             self.has_power_sensor = True
-        except:
+        except (ValueError, OSError):
             pass
     
     def _get_mem_free(self):
@@ -114,7 +114,7 @@ class UniversalBenchmark:
             # RP2040/RP2350 method
             adc = self.temp_sensor.read_u16() * 3.3 / 65535
             return 27 - (adc - 0.706) / 0.001721
-        except:
+        except (OSError, ValueError):
             return None
     
     def _get_power_usage(self):
@@ -125,7 +125,7 @@ class UniversalBenchmark:
         try:
             # Implementation varies by board
             return None  # TODO: Implement for specific boards
-        except:
+        except (OSError, ValueError):
             return None
     
     def _calculate_ops(self, size):
@@ -169,7 +169,7 @@ class UniversalBenchmark:
                 # Force cleanup
                 del test_result
                 gc.collect()
-            except:
+            except (MemoryError, OverflowError):
                 return False
             
             # Clean up
@@ -178,7 +178,7 @@ class UniversalBenchmark:
             gc.collect()
                 
             return True
-        except:
+        except (MemoryError, OverflowError):
             return False
     
     def _find_max_dimensions(self):
