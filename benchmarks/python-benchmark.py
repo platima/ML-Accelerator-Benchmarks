@@ -10,7 +10,7 @@ License: See GitHub repository (link below)
 """
 
 # Benchmark metadata
-__version__ = "0.2-python"
+__version__ = "0.3.0"
 __repo__ = "https://github.com/platima/ml-accelerator-benchmark"
 __source__ = "https://github.com/platima/ml-accelerator-benchmark/blob/<TODO_commit_hash>/python-benchmark.py"
 __author__ = "Platima"
