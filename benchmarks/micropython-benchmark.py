@@ -230,8 +230,11 @@ class UniversalBenchmark:
             
             final_size = low
         
+        # Apply safety factor to avoid memory errors during benchmark
+        final_size = int(final_size * 0.9)
+        
         print("\nResults:")
-        print("Maximum stable size: {}x{}".format(final_size, final_size))
+        print("Maximum stable size: {}x{} (with safety factor)".format(final_size, final_size))
         print("--------------------------------------")
         return final_size
     
