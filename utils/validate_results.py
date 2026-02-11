@@ -95,6 +95,10 @@ def _check_consistency(data: dict) -> List[str]:
 
     Allows a 5 % tolerance to accommodate floating-point rounding in
     firmware that only has single-precision floats.
+
+    If any fields have non-numeric types the arithmetic is skipped to
+    prevent ``TypeError`` crashes; type errors are already reported by
+    ``_check_types``.
     """
     errors = []
     perf = data.get("performance", {})
@@ -106,6 +110,12 @@ def _check_consistency(data: dict) -> List[str]:
     avg_ms = perf.get("avg_inference_ms", 0)
     freq = device.get("cpu_freq_mhz", 0)
     cores = device.get("num_cores", 1)
+
+    # Bail out early if any value is not a real number (e.g. a string
+    # slipped through).  _check_types already flags those.
+    for val in (array_size, channels, avg_ms, freq, cores):
+        if not isinstance(val, (int, float)) or isinstance(val, bool):
+            return errors
 
     # total_ops = array_size^3 * channels + array_size^2 * channels * 2
     expected_ops = (array_size ** 3) * channels + (array_size ** 2) * channels * 2

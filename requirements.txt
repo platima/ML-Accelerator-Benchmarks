@@ -2,3 +2,6 @@
 numpy>=1.24
 psutil>=5.9
 matplotlib>=3.7
+
+# Testing
+pytest>=7.0
