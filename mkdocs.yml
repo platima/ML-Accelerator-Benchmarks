@@ -46,10 +46,11 @@ nav:
       - Understanding Results: benchmarks/results.md
   - API Reference:
       - Overview: api/index.md
-      - BenchmarkAnalyzer: api/benchmark_analyzer.md
+      - BenchmarkAnalyser: api/benchmark_analyzer.md
       - HardwareDetector: api/hardware_detect.md
       - ResultsHandler: api/results_handler.md
       - Visualisation: api/visualization.md
+      - MicroPython Viz: api/micropython_viz.md
   - Contributing: contributing.md
 
 markdown_extensions:
