@@ -1,0 +1,25 @@
+name: Validate Results
+
+on:
+  push:
+    paths:
+      - "results/*.json"
+      - "utils/validate_results.py"
+      - "results/results-schema.json"
+  pull_request:
+    paths:
+      - "results/*.json"
+      - "utils/validate_results.py"
+      - "results/results-schema.json"
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate result files against schema
+        run: python -m utils.validate_results
