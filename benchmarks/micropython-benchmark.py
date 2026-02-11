@@ -8,7 +8,7 @@ License: See GitHub repository (link below)
 """
 
 # Benchmark metadata
-__version__ = "0.8.0"
+__version__ = "0.9.0"
 __repo__ = "https://github.com/platima/ML-Accelerator-Benchmarks"
 __source__ = "https://github.com/platima/ML-Accelerator-Benchmarks/blob/v" + __version__ + "/benchmarks/micropython-benchmark.py"
 __author__ = "Platima"
