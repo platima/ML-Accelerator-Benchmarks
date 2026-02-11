@@ -1,379 +1,294 @@
 """
-Universal ML Hardware Detection - MicroPython Compatible
-Automatically detects available ML acceleration capabilities
+Hardware Detection
+
+Detects the current platform, CPU architecture, and any ML-relevant
+acceleration capabilities.  Designed to run on CPython (Linux / Windows /
+macOS) as well as MicroPython and CircuitPython, where a reduced
+feature set is returned.
+
+This module is **informational only** — the benchmark scripts already
+contain their own board-detection logic.  ``HardwareDetector`` is
+useful for pre-flight checks and generating system-info reports.
 """
+
+import gc
 import os
 import sys
-import gc
 
 try:
-    import platform
+    import platform as _platform
+
     MICROPYTHON = False
 except ImportError:
+    _platform = None
     MICROPYTHON = True
-    try:
-        import machine
-    except ImportError:
-        machine = None
+
+try:
+    import machine as _machine  # type: ignore[import-not-found]
+except ImportError:
+    _machine = None
+
 
 class HardwareDetector:
+    """Detect platform, CPU, memory, and optional accelerators.
+
+    Attributes:
+        platform_info: Basic platform details (OS, arch, Python impl).
+        cpu_info: CPU model, frequency, core count, ISA features.
+        memory_mb: Approximate total RAM in megabytes.
+        accelerators: List of detected accelerator dictionaries.
+    """
+
     def __init__(self):
-        self.platform = self._detect_platform()
-        self.capabilities = self._detect_capabilities()
-        
-    def _detect_platform(self):
-        """Detect basic platform information"""
+        self.platform_info = self._detect_platform()
+        self.cpu_info = self._detect_cpu()
+        self.memory_mb = self._detect_memory()
+        self.accelerators = self._detect_accelerators()
+
+    # ------------------------------------------------------------------
+    # Platform
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _detect_platform() -> dict:
+        """Return OS, architecture, and Python implementation."""
         info = {
             "os": "unknown",
             "architecture": "unknown",
-            "python_impl": "MicroPython" if MICROPYTHON else "CPython",
-            "is_micropython": MICROPYTHON
+            "python_impl": "unknown",
         }
-        
+
         if MICROPYTHON:
-            # MicroPython-specific detection
+            info["python_impl"] = "MicroPython"
             try:
-                if machine:
-                    info["architecture"] = machine.unique_id()
-                    # Try to detect board type
-                    board_name = None
-                    try:
-                        # Different methods to detect board type
-                        if hasattr(machine, 'board'):
-                            board_name = machine.board
-                        elif os.uname().machine:
-                            board_name = os.uname().machine
-                    except:
-                        pass
-                    info["board"] = board_name or "unknown"
-                    
-                # Try to get OS information
-                try:
-                    info["os"] = os.uname().sysname
-                except:
-                    pass
-            except:
+                uname = os.uname()
+                info["os"] = uname.sysname
+                info["architecture"] = uname.machine
+            except (AttributeError, OSError):
+                pass
+
+            # CircuitPython exposes board.board_id
+            try:
+                import board  # type: ignore[import-not-found]
+                info["board_id"] = board.board_id
+                info["python_impl"] = "CircuitPython"
+            except (ImportError, AttributeError):
+                pass
+
+            # MicroPython sys.implementation._machine
+            try:
+                info["machine_desc"] = sys.implementation._machine
+            except AttributeError:
                 pass
         else:
-            # CPython platform detection
-            info["os"] = platform.system()
-            info["architecture"] = platform.machine()
-            
+            info["os"] = _platform.system()
+            info["architecture"] = _platform.machine()
+            info["python_impl"] = _platform.python_implementation()
+
         return info
-        
-    def _detect_capabilities(self):
-        """Detect available ML acceleration capabilities"""
-        caps = {
-            "accelerators": [],
-            "memory_mb": self._get_total_memory(),
-            "supported_ops": [],
-            "quantization": []
+
+    # ------------------------------------------------------------------
+    # CPU
+    # ------------------------------------------------------------------
+
+    def _detect_cpu(self) -> dict:
+        """Return CPU model, frequency (MHz), core count, and ISA flags."""
+        cpu = {
+            "model": "unknown",
+            "freq_mhz": 0,
+            "cores": 1,
+            "isa_features": [],
         }
-        
+
         if MICROPYTHON:
-            # MicroPython-specific hardware detection
-            self._detect_micropython_capabilities(caps)
+            self._detect_cpu_micropython(cpu)
         else:
-            # Standard hardware detection
-            self._detect_standard_capabilities(caps)
-            
-        return caps
-        
-    def _detect_micropython_capabilities(self, caps):
-        """Detect MicroPython-specific capabilities"""
-        if not machine:
-            return
-            
+            self._detect_cpu_cpython(cpu)
+
+        return cpu
+
+    @staticmethod
+    def _detect_cpu_micropython(cpu: dict):
+        """Fill *cpu* dict with MicroPython-specific values."""
         try:
-            # Check for hardware features
-            if hasattr(machine, 'freq'):
-                freq = machine.freq()
-                caps["cpu_freq"] = freq
-                
-            # Add CPU info
-            caps["accelerators"].append({
-                "type": "CPU",
-                "model": self._detect_micropython_cpu(),
-                "features": self._detect_micropython_features()
-            })
-            
-            # Check for specialized hardware
-            if self._check_esp32():
-                caps["accelerators"].append({
-                    "type": "ESP32",
-                    "features": ["ULP", "WiFi", "BLE"]
-                })
-                caps["quantization"].extend(["int8"])
-                
-            elif self._check_rp2040():
-                caps["accelerators"].append({
-                    "type": "RP2040",
-                    "features": ["PIO", "DMA"]
-                })
-                
-            # Add basic op support
-            caps["supported_ops"].extend([
-                "basic_arithmetic",
-                "digital_io",
-                "analog_io",
-                "pwm"
-            ])
-            
-        except Exception as e:
-            print(f"Error detecting capabilities: {str(e)}")
-            
-    def _detect_micropython_cpu(self):
-        """Detect MicroPython CPU details"""
-        try:
-            if machine:
-                # Try different methods to get CPU info
-                if hasattr(os, 'uname'):
-                    return os.uname().machine
-                elif hasattr(machine, 'unique_id'):
-                    # Convert unique_id to readable format
-                    uid = machine.unique_id()
-                    if isinstance(uid, bytes):
-                        return 'CPU-' + ''.join(f'{x:02x}' for x in uid[-4:])
-        except:
+            desc = getattr(sys.implementation, "_machine", "")
+            if desc:
+                cpu["model"] = desc
+        except AttributeError:
             pass
-        return "Unknown MCU"
-        
-    def _detect_micropython_features(self):
-        """Detect MicroPython-specific features"""
-        features = []
-        if not machine:
-            return features
-            
+
         try:
-            # Check for common hardware features
-            if hasattr(machine, 'ADC'):
-                features.append('ADC')
-            if hasattr(machine, 'PWM'):
-                features.append('PWM')
-            if hasattr(machine, 'I2C'):
-                features.append('I2C')
-            if hasattr(machine, 'SPI'):
-                features.append('SPI')
-                
-            # Check for specialized features
-            if hasattr(machine, 'RTC'):
-                features.append('RTC')
-            if hasattr(machine, 'WDT'):
-                features.append('WDT')
-                
-            # Check for networking
-            if 'network' in sys.modules:
-                features.append('NETWORK')
-                
-        except:
+            uname = os.uname()
+            if cpu["model"] == "unknown":
+                cpu["model"] = uname.machine
+        except (AttributeError, OSError):
             pass
-            
-        return features
-        
-    def _check_esp32(self):
-        """Check if running on ESP32"""
-        try:
-            return "ESP32" in os.uname().machine
-        except:
-            return False
-            
-    def _check_rp2040(self):
-        """Check if running on RP2040"""
-        try:
-            return "RP2" in os.uname().machine
-        except:
-            return False
-        
-    def _detect_standard_capabilities(self, caps):
-        """Detect standard Python hardware capabilities"""
-        # CPU Detection
-        caps["accelerators"].append({
-            "type": "CPU",
-            "model": self._detect_cpu_model(),
-            "features": self._detect_cpu_features()
-        })
-        
-        # Check for specialized hardware
-        self._check_npu(caps)
-        self._check_tpu(caps)
-        self._check_edge_tpu(caps)
-        
-    def _detect_cpu_model(self):
-        """Detect CPU model"""
-        if MICROPYTHON:
-            return "MicroController"
-            
+
+        if _machine is not None:
+            try:
+                cpu["freq_mhz"] = _machine.freq() / 1_000_000
+            except (AttributeError, TypeError):
+                pass
+
+    @staticmethod
+    def _detect_cpu_cpython(cpu: dict):
+        """Fill *cpu* dict with CPython platform values."""
+        # Model
         try:
             if sys.platform == "linux":
-                with open("/proc/cpuinfo", "r") as f:
-                    for line in f:
-                        if "model name" in line:
-                            return line.split(":")[1].strip()
-            return platform.processor() or "Unknown"
-        except:
-            return "Unknown"
-            
-    def _detect_cpu_features(self):
-        """Detect CPU features"""
-        features = []
-        if MICROPYTHON:
-            return self._detect_micropython_features()
-            
+                with open("/proc/cpuinfo", "r") as fh:
+                    for line in fh:
+                        if line.startswith("model name"):
+                            cpu["model"] = line.split(":", 1)[1].strip()
+                            break
+            else:
+                cpu["model"] = _platform.processor() or "unknown"
+        except OSError:
+            cpu["model"] = _platform.processor() or "unknown"
+
+        # Core count
+        try:
+            cpu["cores"] = os.cpu_count() or 1
+        except AttributeError:
+            cpu["cores"] = 1
+
+        # ISA features (Linux only — /proc/cpuinfo flags)
         try:
             if sys.platform == "linux":
-                with open("/proc/cpuinfo", "r") as f:
-                    for line in f:
-                        if "flags" in line:
-                            flags = line.split(":")[1].strip().split()
-                            if "neon" in flags:
-                                features.append("NEON")
-                            if "sse" in flags:
-                                features.append("SSE")
-                            if "avx" in flags:
-                                features.append("AVX")
-        except:
+                with open("/proc/cpuinfo", "r") as fh:
+                    for line in fh:
+                        if line.startswith("flags") or line.startswith("Features"):
+                            tokens = line.split(":", 1)[1].strip().split()
+                            for feat in ("neon", "sse", "sse2", "avx", "avx2", "avx512f", "rvv"):
+                                if feat in tokens:
+                                    cpu["isa_features"].append(feat.upper())
+                            break
+        except OSError:
             pass
-        return features
-        
-    def _get_total_memory(self):
-        """Get total memory in MB"""
+
+    # ------------------------------------------------------------------
+    # Memory
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _detect_memory() -> int:
+        """Return total RAM in megabytes (approximate)."""
         if MICROPYTHON:
             try:
                 gc.collect()
-                free = gc.mem_free()
-                alloc = gc.mem_alloc()
-                return (free + alloc) // (1024 * 1024)  # Convert to MB
-        except:
-            return 0
-            
-        else:
-            try:
-                import psutil
-                return psutil.virtual_memory().total // (1024 * 1024)
-            except:
+                total = gc.mem_free() + gc.mem_alloc()
+                return total // (1024 * 1024) if total > 1024 * 1024 else 0
+            except AttributeError:
                 return 0
-                
-    def _check_npu(self, caps):
-        """Check for Neural Processing Unit"""
+
+        # CPython — try /proc/meminfo first, then psutil
         try:
-            # Check for common NPU drivers/libraries
-            if os.path.exists("/dev/mali0"):
-                caps["accelerators"].append({
-                    "type": "NPU",
-                    "model": "Mali NPU",
-                    "ops": ["conv2d", "matmul"]
-                })
-                caps["quantization"].extend(["int8", "int16"])
-            elif os.path.exists("/dev/mtk_mdla"):
-                caps["accelerators"].append({
-                    "type": "NPU",
-                    "model": "MediaTek APU",
-                    "ops": ["conv2d", "matmul"]
-                })
-                caps["quantization"].extend(["int8"])
-        except:
+            if sys.platform == "linux":
+                with open("/proc/meminfo", "r") as fh:
+                    for line in fh:
+                        if line.startswith("MemTotal"):
+                            kb = int(line.split()[1])
+                            return kb // 1024
+        except OSError:
             pass
-            
-    def _check_tpu(self, caps):
-        """Check for Tensor Processing Unit"""
+
         try:
-            import importlib
-            if importlib.util.find_spec("tflite_runtime"):
-                # Check for Edge TPU
-                if os.path.exists("/dev/apex_0"):
-                    caps["accelerators"].append({
-                        "type": "TPU",
-                        "model": "Edge TPU",
-                        "ops": ["conv2d", "matmul"]
-                    })
-                    caps["quantization"].extend(["int8"])
-        except:
-            pass
-            
-    def _check_edge_tpu(self, caps):
-        """Check for Google Edge TPU"""
+            import psutil  # type: ignore[import-untyped]
+            return int(psutil.virtual_memory().total / (1024 * 1024))
+        except ImportError:
+            return 0
+
+    # ------------------------------------------------------------------
+    # Accelerators
+    # ------------------------------------------------------------------
+
+    def _detect_accelerators(self) -> list:
+        """Return a list of detected ML-relevant accelerator dicts.
+
+        Each dict has at minimum ``type`` and ``model`` keys.
+        """
+        accs = []
+
+        if MICROPYTHON:
+            # On MCUs the "accelerator" is really just the CPU + ulab
+            try:
+                import ulab  # type: ignore[import-not-found]
+                accs.append({
+                    "type": "CPU+ulab",
+                    "model": self.cpu_info.get("model", "MCU"),
+                    "notes": "ulab {}".format(getattr(ulab, "__version__", "?")),
+                })
+            except ImportError:
+                accs.append({
+                    "type": "CPU",
+                    "model": self.cpu_info.get("model", "MCU"),
+                })
+            return accs
+
+        # --- CPython accelerator discovery ---
+        accs.append({
+            "type": "CPU",
+            "model": self.cpu_info.get("model", "unknown"),
+        })
+
+        # Coral Edge TPU
         try:
             import importlib
             if importlib.util.find_spec("pycoral"):
-                caps["accelerators"].append({
-                    "type": "TPU",
-                    "model": "Google Edge TPU",
-                    "ops": ["conv2d", "matmul", "pooling"],
-                    "quantization": ["int8"]
-                })
-                caps["quantization"].extend(["int8"])
-        except:
+                accs.append({"type": "TPU", "model": "Google Edge TPU"})
+        except (ImportError, AttributeError):
             pass
-            
-    def get_recommended_config(self):
-        """Get recommended benchmark configuration"""
-        config = {
-            "framework": "tflite-micro" if MICROPYTHON else "tflite",
-            "quantization": [],
-            "batch_size": 1,
-            "threads": 1
-        }
-        
-        # Adjust based on capabilities
-        if MICROPYTHON:
-            if self._check_esp32():
-                config["framework"] = "tflite-micro"
-                config["quantization"] = ["int8"]
-            elif self._check_rp2040():
-                config["framework"] = "cmsis-nn"
-                config["quantization"] = ["int8"]
-        else:
-            for acc in self.capabilities["accelerators"]:
-                if acc["type"] == "NPU":
-                    config["framework"] = "tflite"
-                    config["quantization"] = ["int8"]
-                    break
-                elif acc["type"] == "TPU":
-                    config["framework"] = "tflite-edge-tpu"
-                    config["quantization"] = ["int8"]
-                    break
-                    
-        return config
-        
-    def print_capabilities(self):
-        """Print detected capabilities in a readable format"""
-        print("\nHardware Detection Results")
-        print("=" * 20)
-        
-        # Platform info
-        print(f"Platform: {self.platform['os']}")
-        print(f"Python: {self.platform['python_impl']}")
-        if MICROPYTHON:
-            print(f"Board: {self.platform.get('board', 'Unknown')}")
-        print(f"Memory: {self.capabilities['memory_mb']} MB")
-        
-        # Accelerators
-        print("\nAccelerators:")
-        for acc in self.capabilities["accelerators"]:
-            print(f"- Type: {acc['type']}")
-            print(f"  Model: {acc.get('model', 'Unknown')}")
-            if "features" in acc:
-                print(f"  Features: {', '.join(acc['features'])}")
-            if "ops" in acc:
-                print(f"  Ops: {', '.join(acc['ops'])}")
-                
-        # Quantization support
-        if self.capabilities["quantization"]:
-            print("\nQuantization Support:")
-            print(", ".join(self.capabilities["quantization"]))
-            
-        # Memory management
-        gc.collect()
+
+        # Rockchip RKNN NPU
+        if os.path.exists("/dev/rknpu") or os.path.exists("/usr/lib/librknnrt.so"):
+            accs.append({"type": "NPU", "model": "Rockchip RKNN"})
+
+        # Mali GPU / NPU
+        if os.path.exists("/dev/mali0"):
+            accs.append({"type": "GPU/NPU", "model": "Mali"})
+
+        return accs
+
+    # ------------------------------------------------------------------
+    # Reporting
+    # ------------------------------------------------------------------
+
+    def summary(self) -> str:
+        """Return a multi-line summary string."""
+        lines = [
+            "Hardware Detection Summary",
+            "=" * 40,
+            "OS:           {}".format(self.platform_info.get("os", "?")),
+            "Architecture: {}".format(self.platform_info.get("architecture", "?")),
+            "Python:       {}".format(self.platform_info.get("python_impl", "?")),
+            "CPU model:    {}".format(self.cpu_info.get("model", "?")),
+            "CPU cores:    {}".format(self.cpu_info.get("cores", "?")),
+            "CPU freq:     {} MHz".format(self.cpu_info.get("freq_mhz", "?")),
+            "RAM:          {} MB".format(self.memory_mb),
+        ]
+
+        isa = self.cpu_info.get("isa_features", [])
+        if isa:
+            lines.append("ISA features: {}".format(", ".join(isa)))
+
+        if self.accelerators:
+            lines.append("")
+            lines.append("Accelerators:")
+            for acc in self.accelerators:
+                lines.append("  - {} ({})".format(acc.get("type", "?"), acc.get("model", "?")))
+
+        return "\n".join(lines)
+
+    def print_summary(self):
+        """Print the hardware summary to stdout."""
+        print(self.summary())
+
 
 def main():
-    """Example usage"""
+    """CLI entry point."""
     detector = HardwareDetector()
-    detector.print_capabilities()
-    
-    config = detector.get_recommended_config()
-    print("\nRecommended Configuration:")
-    for key, value in config.items():
-        print(f"{key}: {value}")
+    detector.print_summary()
+
 
 if __name__ == "__main__":
     main()
