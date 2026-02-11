@@ -70,3 +70,21 @@ Where:
 ## Schema Validation
 
 Result files can be validated against the JSON schema at `results/results-schema.json`. The `avg_temperature` and `max_temperature` fields are optional — they are only present when the device has a working temperature sensor.
+
+### Running the Validator
+
+```bash
+# Validate all result files in results/
+python -m utils.validate_results
+
+# Validate specific files
+python -m utils.validate_results results/2025-01-19*.json
+```
+
+The validator checks:
+
+1. **Structure** — all required sections and fields are present.
+2. **Types** — values match the expected JSON types.
+3. **Consistency** — derived fields (`total_ops`, `ops_per_second`, `normalized_score`, `theoretical_power`) agree with the formulas above within a 5 % tolerance.
+
+A CI workflow runs the validator automatically whenever result files or the schema are modified.

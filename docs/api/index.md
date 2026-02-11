@@ -14,6 +14,7 @@ The `utils/` package provides analysis, visualisation, and results-handling util
 | [`results_handler`](results_handler.md) | `ResultsHandler` | Save, load, compare, and manage result files |
 | [`visualization`](visualization.md) | `BenchmarkVisualiser` | Generate matplotlib comparison charts (CPython only) |
 | [`micropython_viz`](micropython_viz.md) | `TextVisualiser` | ASCII bar charts for MicroPython / CircuitPython REPL |
+| [`validate_results`](validate_results.md) | — | Schema validation and consistency checks for result files |
 
 ## Quick Start
 

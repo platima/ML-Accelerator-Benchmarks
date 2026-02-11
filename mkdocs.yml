@@ -51,6 +51,7 @@ nav:
       - ResultsHandler: api/results_handler.md
       - Visualisation: api/visualization.md
       - MicroPython Viz: api/micropython_viz.md
+      - Result Validator: api/validate_results.md
   - Contributing: contributing.md
 
 markdown_extensions:
