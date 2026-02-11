@@ -75,10 +75,10 @@ Result files can be validated against the JSON schema at `results/results-schema
 
 ```bash
 # Validate all result files in results/
-python -m utils.validate_results
+python -m utils validate
 
 # Validate specific files
-python -m utils.validate_results results/2025-01-19*.json
+python -m utils validate results/2025-01-19*.json
 ```
 
 The validator checks:

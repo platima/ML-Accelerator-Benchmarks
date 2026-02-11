@@ -57,7 +57,7 @@ If you've run benchmarks on hardware not yet in the `results/` directory:
 Result JSON files should conform to `results/results-schema.json`. You can validate with:
 
 ```bash
-python -m utils.validate_results
+python -m utils validate
 ```
 
 ## Code Style

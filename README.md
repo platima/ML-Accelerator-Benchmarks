@@ -57,10 +57,10 @@ Copy `benchmarks/circuitpython-benchmark.py` to the device as `code.py` or run v
 
 ```bash
 # Validate all result files
-python -m utils.validate_results
+python -m utils validate
 
 # Print comparison report
-python -m utils.benchmark_analyzer
+python -m utils analyse
 ```
 
 ## Result Format

@@ -1,3 +1,3 @@
-# BenchmarkAnalyzer
+# BenchmarkAnalyser
 
 ::: utils.benchmark_analyzer

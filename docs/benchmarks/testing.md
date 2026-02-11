@@ -1,6 +1,6 @@
 # Testing Checklist
 
-This page lists every target device and the steps needed to verify the v0.8+ benchmark scripts.
+This page lists every target device and the steps needed to verify the v0.9+ benchmark scripts.
 
 ## Test Matrix
 
@@ -25,13 +25,13 @@ For each device:
 1. **Upload** the appropriate benchmark script.
 2. **Run** the benchmark and capture the JSON output.
 3. **Save** the JSON to `results/YYYY-MM-DD <Board> <Runtime>.json`.
-4. **Validate** with form:
+4. **Validate** with:
    ```bash
-   python -m utils.validate_results results/<filename>.json
+   python -m utils validate results/<filename>.json
    ```
 5. **Check** the report:
    ```bash
-   python -m utils.benchmark_analyzer
+   python -m utils analyse
    ```
 
 ## What to Look For
@@ -52,11 +52,11 @@ Once all 11 devices have been tested:
 
 ```bash
 # Validate every result file
-python -m utils.validate_results
+python -m utils validate
 
 # Generate the full comparison report
-python -m utils.benchmark_analyzer
+python -m utils analyse
 
 # Generate charts (requires matplotlib)
-python -c "from utils.visualization import main; main()"
+python -m utils visualise
 ```
