@@ -22,4 +22,4 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate result files against schema
-        run: python -m utils.validate_results
+        run: python -m utils validate

@@ -4,11 +4,12 @@ Contributions are welcome! This guide covers the development workflow and conven
 
 ## Development Setup
 
-1. Clone the repository:
+1. Clone the repository and switch to the **develop** branch:
 
     ```bash
     git clone https://github.com/platima/ML-Accelerator-Benchmarks.git
     cd ML-Accelerator-Benchmarks
+    git checkout develop
     ```
 
 2. Install dependencies:
@@ -43,6 +44,14 @@ This project follows [Semantic Versioning](https://semver.org/) (semver):
 - **MINOR** — new features, new hardware support, phase completions
 - **PATCH** — bug fixes, documentation updates, minor improvements
 
+## Branching Workflow
+
+All development happens on the **develop** branch. When a release is ready, `develop` is merged into `main` and tagged.
+
+1. Create a feature branch from `develop`
+2. Make your changes
+3. Submit a pull request **against `develop`** (not `main`)
+
 ## Submitting Results
 
 If you've run benchmarks on hardware not yet in the `results/` directory:
@@ -50,7 +59,7 @@ If you've run benchmarks on hardware not yet in the `results/` directory:
 1. Run the appropriate benchmark script
 2. Save the JSON output to `results/` using the naming convention: `YYYY-MM-DD Board Runtime.json`
 3. Validate your result against the schema (see below)
-4. Submit a pull request
+4. Submit a pull request against `develop`
 
 ## Schema Validation
 
