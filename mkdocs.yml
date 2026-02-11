@@ -44,6 +44,7 @@ nav:
       - Running Benchmarks: benchmarks/running.md
       - Hardware Compatibility: benchmarks/hardware.md
       - Understanding Results: benchmarks/results.md
+      - Testing Checklist: benchmarks/testing.md
   - API Reference:
       - Overview: api/index.md
       - BenchmarkAnalyser: api/benchmark_analyzer.md
