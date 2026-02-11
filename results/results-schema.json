@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Universal ML Benchmark Results",
   "type": "object",
-  "required": ["device", "performance", "benchmark"],
+  "required": ["_meta", "device", "performance", "benchmark"],
   "properties": {
     "_meta": {
       "type": "object",
@@ -41,7 +41,9 @@
         "avg_inference_ms": { "type": "number" },
         "throughput_fps": { "type": "number" },
         "avg_temperature": { "type": "number" },
-        "max_temperature": { "type": "number" }
+        "max_temperature": { "type": "number" },
+        "avg_power_usage": { "type": "number" },
+        "max_power_usage": { "type": "number" }
       }
     },
     "benchmark": {

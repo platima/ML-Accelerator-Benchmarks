@@ -67,6 +67,17 @@ def _check_types(data: dict, properties: dict, path: str) -> List[str]:
         if py_type is None:
             continue
         val = data[key]
+        # In Python, bool is a subclass of int — guard against that
+        if expected == "integer" and isinstance(val, bool):
+            errors.append(
+                "{}.{}: expected integer, got boolean".format(path, key)
+            )
+            continue
+        if expected == "number" and isinstance(val, bool):
+            errors.append(
+                "{}.{}: expected number, got boolean".format(path, key)
+            )
+            continue
         # JSON integer / number flexibility
         if expected == "integer" and isinstance(val, float) and val == int(val):
             continue
