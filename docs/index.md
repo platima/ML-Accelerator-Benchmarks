@@ -8,27 +8,30 @@ This suite runs standardised matrix multiplication and element-wise operation be
 
 - **CPython** (with NumPy) — for Linux SBCs and desktops
 - **MicroPython** (with ulab) — for microcontrollers like RP2350, ESP32
-- **CircuitPython** (with ulab) — for microcontrollers like RP2040, RP2350
+- **CircuitPython** (with ulab) — for microcontrollers like RP2040, RP2350, ESP32-P4
 
 Results are output as structured JSON for easy comparison across wildly different hardware.
 
 ## Key Features
 
-- Automatic hardware detection and configuration
-- Memory-aware matrix size optimisation
+- Automatic hardware and board detection
+- Memory-aware matrix-size probing with 0.9× safety factor
 - Multi-core awareness
-- Temperature and power monitoring (where available)
-- Standardised performance metrics
-- JSON output format for parsing and comparison
+- Temperature monitoring (where available)
+- Standardised JSON output with schema validation
+- Utilities for analysis, charts, and comparison reports
 
-## Quick Start
+## Quick Links
 
-See the [Getting Started](getting-started.md) guide for installation and usage instructions.
-
-## Supported Hardware
-
-See the [Hardware Compatibility](benchmarks/hardware.md) page for the full list of tested platforms.
+| | |
+|---|---|
+| [Getting Started](getting-started.md) | Installation and first run |
+| [Running Benchmarks](benchmarks/running.md) | Per-runtime instructions |
+| [Hardware Compatibility](benchmarks/hardware.md) | Supported devices |
+| [Understanding Results](benchmarks/results.md) | JSON format and metrics |
+| [Testing Checklist](benchmarks/testing.md) | Per-device verification steps |
+| [API Reference](api/index.md) | Utils package documentation |
 
 ## License
 
-This project is licensed under the Apache 2.0 License. See the LICENSE file for details.
+Apache 2.0 — see the [LICENSE](https://github.com/platima/ML-Accelerator-Benchmarks/blob/main/LICENSE) file for details.
