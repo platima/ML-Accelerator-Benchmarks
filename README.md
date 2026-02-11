@@ -7,114 +7,100 @@
 [![CircuitPython](https://img.shields.io/badge/circuitpython-8.2+-blue.svg)](https://circuitpython.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-A comprehensive benchmarking suite for ML accelerators across the entire spectrum of computing devices - from powerful edge AI accelerators to resource-constrained microcontrollers.
-
-## Table of Contents
-- [Overview](#overview)
-- [Features](#features)
-- [Supported Hardware](#supported-hardware)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Benchmark Metrics](#benchmark-metrics)
-- [Example Results](#example-results)
-- [Future Development](#future-development)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Overview
-This benchmark suite provides standardised performance metrics for matrix operations commonly used in ML workloads. It automatically detects hardware capabilities and maximises matrix sizes based on available memory.
+A benchmarking suite for ML-relevant matrix operations across the spectrum of computing devices — from desktops to resource-constrained microcontrollers. Automatically detects hardware, maximises matrix sizes based on available memory, and outputs standardised JSON results.
 
 ## Features
-- Automatic hardware detection and configuration
-- Memory-aware matrix size optimisation
+
+- **Three runtimes**: CPython + NumPy, MicroPython + ulab, CircuitPython + ulab
+- Automatic board and CPU detection
+- Memory-aware matrix-size probing with 0.9× safety factor
 - Multi-core awareness
-- Temperature and power monitoring (where available)
-- Standardised performance metrics
-- JSON output format for easy parsing and comparison
+- Temperature monitoring (where available)
+- Standardised JSON output with schema validation
+- Utilities for analysis, visualisation, and comparison
 
 ## Supported Hardware
-Currently tested and supported platforms:
-- RP2040 (Raspberry Pi Pico) - MicroPython + ulab (Pimoroni)
-- RP2350 (Raspberry Pi Pico W 2) - MicroPython + ulab (Pimoroni), CircuitPython
-- ESP32-P4 - CircuitPython
 
-## Installation
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/platima/ml-accelerator-benchmark.git
-   ```
-2. Choose the appropriate version for your platform:
-   - `micropython-benchmark.py` for MicroPython devices
-   - `circuitpython-benchmark.py` for CircuitPython devices
+| Device | Architecture | Runtime |
+|--------|-------------|---------|
+| Intel i7-14700K | x86-64 | CPython |
+| Luckfox Omni3576 | ARM64 (RK3576) | CPython |
+| SpacemiT MUSE Pi Pro | RISC-V 64 | CPython |
+| Luckfox Pico Zero | ARM32 (RV1103) | CPython |
+| Milk-V Duo 256 | RISC-V 64 (CV1812H) | CPython |
+| Raspberry Pi 4 / 5 | ARM64 | CPython |
+| RP2350 (Pico 2) | ARM Cortex-M33 | MicroPython, CircuitPython |
+| RP2040 (Pico) | ARM Cortex-M0+ | MicroPython, CircuitPython |
+| ESP32-S3 (LX7) | Xtensa LX7 | MicroPython |
+| ESP32-C6 | RISC-V 32 | MicroPython |
+| ESP32 (LX6) | Xtensa LX6 | MicroPython |
+| ESP32-P4 | RISC-V | CircuitPython |
 
-## Usage
-1. Upload the appropriate benchmark file to your device
-2. Run the benchmark:
-   ```python
-   import benchmark
-   benchmark = UniversalBenchmark()
-   results = benchmark.run()
-   ```
+## Quick Start
 
-## Benchmark Metrics
-The benchmark provides several key metrics:
-- **Matrix Operations**: Maximum supported matrix size and performance
-- **Memory Usage**: Total available and used memory
-- **Performance Metrics**:
-  - Raw inference time
-  - Operations per second
-  - Normalised score (ops/second/MHz)
-  - Theoretical power (accounting for cores and frequency)
-- **Hardware Monitoring**:
-  - Temperature (where available)
-  - Power usage (where available)
+### Desktop / SBC (CPython)
 
-## Example Results
-```json
-{
-    "_meta": {
-        "Source version": "0.2",
-        "Source code": "https://github.com/platima/ml-accelerator-benchmark/blob/main/micropython-benchmark.py",
-        "Source repo": "https://github.com/platima/ml-accelerator-benchmark",
-        "Test date": "2025-01-19",
-        "Tester": "Platima"
-    },
-    "device": {
-        "board_type": "rp2350",
-        "cpu_freq_mhz": 150.000,
-        "num_cores": 2,
-        "temp_sensor": true,
-        "power_sensor": true
-    },
-    "performance": {
-        "channels": 3,
-        "array_size": 134,
-        "memory_total": 480160,
-        "memory_used": 288096,
-        "min_inference_ms": 1759.000,
-        "max_inference_ms": 1770.000,
-        "avg_inference_ms": 1760.100,
-        "throughput_fps": 0.568
-    },
-    "benchmark": {
-        "total_ops": 7332828,
-        "ops_per_second": 4166143,
-        "normalized_score": 27774.290,
-        "theoretical_power": 8332287
-    }
-}
+```bash
+pip install numpy psutil
+python benchmarks/python-benchmark.py
 ```
 
+### MicroPython
+
+Upload `benchmarks/micropython-benchmark.py` to the device and run via REPL.
+
+### CircuitPython
+
+Copy `benchmarks/circuitpython-benchmark.py` to the device as `code.py` or run via REPL.
+
+### Analysing Results
+
+```bash
+# Validate all result files
+python -m utils.validate_results
+
+# Print comparison report
+python -m utils.benchmark_analyzer
+```
+
+## Result Format
+
+Every benchmark outputs a JSON object with four sections:
+
+| Section | Contents |
+|---------|----------|
+| `_meta` | Source version, date, tester, firmware URL |
+| `device` | Board type, CPU frequency, core count, sensors |
+| `performance` | Array size, inference times, memory, temperature |
+| `benchmark` | Total ops, ops/sec, normalised score, theoretical power |
+
+See [Understanding Results](https://platima.github.io/ML-Accelerator-Benchmarks/benchmarks/results/) for full field definitions and the schema at `results/results-schema.json`.
+
+## Utilities
+
+The `utils/` package provides:
+
+| Module | Purpose |
+|--------|---------|
+| `benchmark_analyzer` | Load results, rank devices, generate text reports |
+| `visualization` | matplotlib comparison charts (CPython only) |
+| `micropython_viz` | ASCII bar charts for the REPL |
+| `results_handler` | Save / load / list result files |
+| `hardware_detect` | Platform, CPU, and accelerator detection |
+| `validate_results` | Schema + consistency validation |
+
+## Documentation
+
+Full documentation is available at [platima.github.io/ML-Accelerator-Benchmarks](https://platima.github.io/ML-Accelerator-Benchmarks/).
+
 ## Future Development
-The future planned version of this benchmark suite can be found in the [future-development branch](https://github.com/platima/ml-accelerator-benchmark/tree/future-development). Note that this branch contains work-in-progress features that are currently untested.
+
+The planned next-generation benchmark suite is in the [future-development branch](https://github.com/platima/ML-Accelerator-Benchmarks/tree/future-development). That branch contains untested work-in-progress features.
 
 ## Contributing
-Contributions are welcome! Key areas for improvement include:
-- Additional hardware support
-- Improved detection methods
-- New benchmark metrics
-- Documentation improvements
-- Bug fixes and optimisations
+
+Contributions are welcome — hardware results, bug fixes, new board detection, and documentation improvements. See the [Contributing Guide](https://platima.github.io/ML-Accelerator-Benchmarks/contributing/) for conventions.
 
 ## License
-This project is licensed under the Apache 2.0 License - see the LICENSE file for details.
+
+Apache 2.0 — see [LICENSE](LICENSE) for details.
