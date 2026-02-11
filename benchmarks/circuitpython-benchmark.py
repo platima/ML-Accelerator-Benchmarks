@@ -1,7 +1,7 @@
 """
 Universal CircuitPython ML Benchmark
 
-A standardized benchmark for testing ML matrix operation performance
+A standardised benchmark for testing ML matrix operation performance
 on microcontrollers and SBCs.
 
 License: See GitHub repository (link below)
@@ -525,4 +525,4 @@ if __name__ == "__main__":
             benchmark.print_results(results)
             
     except Exception as e:
-        print(f"Benchmark failed: {str(e)}")
+        print("Benchmark failed: {}".format(e))

@@ -1,7 +1,7 @@
 """
 Universal MicroPython ML Benchmark
 
-A standardized benchmark for testing ML matrix operation performance
+A standardised benchmark for testing ML matrix operation performance
 on microcontrollers and SBCs.
 
 License: See GitHub repository (link below)
@@ -124,7 +124,7 @@ class UniversalBenchmark:
             
         try:
             # Implementation varies by board
-            return None  # TODO: Implement for specific boards
+            return None  # No common API across boards
         except (OSError, ValueError):
             return None
     

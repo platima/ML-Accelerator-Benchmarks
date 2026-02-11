@@ -1,7 +1,7 @@
 """
 Universal Python ML Benchmark
 
-A standardized benchmark for testing ML matrix operation performance
+A standardised benchmark for testing ML matrix operation performance
 on single-board computers and desktop systems.
 
 Adapted from MicroPython version for standard Python environments.
